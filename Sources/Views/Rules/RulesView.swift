@@ -3,8 +3,12 @@ import SwiftUI
 /// 规则管理页面
 struct RulesView: View {
     @State private var ruleGroups: [RuleGroup] = []
-    @State private var selectedGroup: RuleGroup?
+    @State private var selectedGroupId: UUID?
     @State private var searchText = ""
+    
+    private var selectedGroup: RuleGroup? {
+        ruleGroups.first { $0.id == selectedGroupId }
+    }
     
     var body: some View {
         HStack(spacing: 0) {
@@ -48,10 +52,10 @@ struct RulesView: View {
                     ForEach(ruleGroups) { group in
                         RuleGroupCell(
                             group: group,
-                            isSelected: selectedGroup?.id == group.id,
+                            isSelected: selectedGroupId == group.id,
                             onSelect: {
                                 withAnimation(Theme.Animation.fast) {
-                                    selectedGroup = group
+                                    selectedGroupId = group.id
                                 }
                             }
                         )
@@ -232,7 +236,7 @@ struct RulesView: View {
             ),
         ]
         
-        selectedGroup = ruleGroups.first
+        selectedGroupId = ruleGroups.first?.id
     }
 }
 

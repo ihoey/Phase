@@ -56,35 +56,28 @@ struct LogsView: View {
     
     private var toolbar: some View {
         HStack(spacing: Theme.Spacing.md) {
-            // 日志级别过滤
-            HStack(spacing: Theme.Spacing.xs) {
-                Button(action: { selectedLevel = nil }) {
-                    Text("全部")
-                        .font(Theme.Typography.callout)
-                        .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.vertical, Theme.Spacing.sm)
-                        .background(selectedLevel == nil ? Theme.Colors.accent.opacity(0.1) : Color.clear)
-                        .foregroundColor(selectedLevel == nil ? Theme.Colors.accent : Theme.Colors.secondaryText)
-                        .cornerRadius(Theme.CornerRadius.md)
-                }
-                .buttonStyle(.plain)
+            // 日志级别过滤 - 使用 Picker 节省空间
+            HStack(spacing: Theme.Spacing.sm) {
+                Text("级别")
+                    .font(Theme.Typography.callout)
+                    .foregroundColor(Theme.Colors.secondaryText)
                 
-                ForEach(LogEntry.LogLevel.allCases, id: \.self) { level in
-                    Button(action: { selectedLevel = level }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: level.iconName)
-                                .font(.system(size: 10))
-                            Text(level.displayName)
-                                .font(Theme.Typography.caption)
-                        }
-                        .padding(.horizontal, Theme.Spacing.sm)
-                        .padding(.vertical, Theme.Spacing.sm)
-                        .background(selectedLevel == level ? levelColor(level).opacity(0.1) : Color.clear)
-                        .foregroundColor(selectedLevel == level ? levelColor(level) : Theme.Colors.secondaryText)
-                        .cornerRadius(Theme.CornerRadius.md)
+                Picker("", selection: Binding(
+                    get: { selectedLevel?.rawValue ?? "all" },
+                    set: { newValue in
+                        selectedLevel = LogEntry.LogLevel(rawValue: newValue)
                     }
-                    .buttonStyle(.plain)
+                )) {
+                    Text("全部").tag("all")
+                    ForEach(LogEntry.LogLevel.allCases, id: \.self) { level in
+                        HStack {
+                            Image(systemName: level.iconName)
+                            Text(level.displayName)
+                        }.tag(level.rawValue)
+                    }
                 }
+                .pickerStyle(.menu)
+                .frame(width: 120)
             }
             
             Spacer()
