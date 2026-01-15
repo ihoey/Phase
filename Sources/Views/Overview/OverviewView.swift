@@ -53,62 +53,63 @@ struct OverviewView: View {
             VStack(spacing: 16) {
                 // 主要状态指标
                 HStack(spacing: 0) {
-                    StatusMetric(
-                        icon: "clock",
-                        label: "运行时长",
-                        value: formattedUptime,
-                        valueColor: Theme.Colors.statusActive
+                    // 运行时长 - 翻牌器样式
+                    UptimeDisplay(
+                        isRunning: proxyManager.isRunning,
+                        startTime: proxyManager.startTime
                     )
 
                     Divider()
                         .frame(height: 40)
                         .padding(.horizontal, 12)
 
-                    StatusMetric(
+                    // 连接数
+                    AnimatedMetric(
                         icon: "link",
                         label: "连接数",
-                        value: proxyManager.isRunning ? "12" : "0",
-                        valueColor: .primary
+                        value: proxyManager.isRunning ? 12 : 0,
+                        suffix: "",
+                        color: proxyManager.isRunning ? .blue : .secondary
                     )
 
                     Divider()
                         .frame(height: 40)
                         .padding(.horizontal, 12)
 
-                    StatusMetric(
-                        icon: "memorychip",
-                        label: "内存",
-                        value: proxyManager.isRunning ? "48 MB" : "0 MB",
-                        valueColor: .primary
+                    // 内存使用 - 带进度条
+                    MemoryUsageMetric(
+                        usedMB: proxyManager.isRunning ? 48 : 0,
+                        totalMB: 256
                     )
                 }
 
                 Divider()
 
-                // 底部状态栏
-                HStack(spacing: 24) {
-                    StatusBadge(
+                // 底部状态栏 - 胶囊徽章
+                HStack(spacing: 12) {
+                    PillBadge(
                         icon: "circle.fill",
                         label: "状态",
                         value: proxyManager.isRunning ? "已连接" : "已断开",
-                        isActive: proxyManager.isRunning
+                        isActive: proxyManager.isRunning,
+                        showPulse: proxyManager.isRunning
                     )
 
-                    StatusBadge(
+                    PillBadge(
                         icon: "cpu",
                         label: "内核",
                         value: "sing-box",
                         isActive: true
                     )
 
-                    StatusBadge(
+                    PillBadge(
                         icon: "apple.logo",
                         label: "系统",
                         value: "macOS 15.0",
                         isActive: true
                     )
 
-                    StatusBadge(
+                    PillBadge(
                         icon: "number",
                         label: "版本",
                         value: "1.0.0",
@@ -636,6 +637,268 @@ struct StatusBadge: View {
             Text(value)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.primary)
+        }
+    }
+}
+
+// MARK: - 运行时长组件
+
+struct UptimeDisplay: View {
+    let isRunning: Bool
+    let startTime: Date?
+    @State private var currentTime = Date()
+    
+    // 每分钟更新一次，节省资源
+    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: "clock")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Text("运行时长")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack(spacing: 2) {
+                // 根据运行时长决定显示格式
+                if days > 0 {
+                    // 超过1天: 显示 Xd HH:MM
+                    Text("\(days)d")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(Theme.Colors.statusActive)
+                    Text(" ")
+                    FlipDigit(value: hours % 24 / 10)
+                    FlipDigit(value: hours % 24 % 10)
+                    Text(":")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(Theme.Colors.statusActive)
+                    FlipDigit(value: minutes / 10)
+                    FlipDigit(value: minutes % 10)
+                } else {
+                    // 不到1天: 显示 HH:MM
+                    FlipDigit(value: hours / 10)
+                    FlipDigit(value: hours % 10)
+                    Text(":")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(Theme.Colors.statusActive)
+                    FlipDigit(value: minutes / 10)
+                    FlipDigit(value: minutes % 10)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onReceive(timer) { _ in
+            currentTime = Date()
+        }
+        .onAppear {
+            // 首次显示时立即更新
+            currentTime = Date()
+        }
+    }
+    
+    private var totalSeconds: Int {
+        guard isRunning, let start = startTime else { return 0 }
+        return Int(currentTime.timeIntervalSince(start))
+    }
+    
+    private var days: Int {
+        totalSeconds / 86400
+    }
+    
+    private var hours: Int {
+        totalSeconds / 3600
+    }
+    
+    private var minutes: Int {
+        (totalSeconds % 3600) / 60
+    }
+}
+
+// MARK: - 翻牌数字
+
+struct FlipDigit: View {
+    let value: Int
+
+    var body: some View {
+        Text("\(value)")
+            .font(.system(size: 22, weight: .bold, design: .rounded))
+            .foregroundColor(Theme.Colors.statusActive)
+            .frame(width: 16)
+            .contentTransition(.numericText())
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: value)
+    }
+}
+
+// MARK: - 动画数字指标
+
+struct AnimatedMetric: View {
+    let icon: String
+    let label: String
+    let value: Int
+    let suffix: String
+    let color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text("\(value)")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(color)
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: value)
+
+                if !suffix.isEmpty {
+                    Text(suffix)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(color.opacity(0.7))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - 内存使用指标
+
+struct MemoryUsageMetric: View {
+    let usedMB: Int
+    let totalMB: Int
+
+    private var progress: Double {
+        guard totalMB > 0 else { return 0 }
+        return Double(usedMB) / Double(totalMB)
+    }
+
+    private var progressColor: Color {
+        switch progress {
+        case 0..<0.5: return Theme.Colors.statusActive
+        case 0.5..<0.8: return Theme.Colors.statusWarning
+        default: return Theme.Colors.statusError
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: "memorychip")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Text("内存")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text("\(usedMB)")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(progressColor)
+                    .contentTransition(.numericText())
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: usedMB)
+                Text("MB")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(progressColor.opacity(0.7))
+            }
+
+            // 进度条
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color.gray.opacity(0.2))
+
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(
+                            LinearGradient(
+                                colors: [progressColor.opacity(0.8), progressColor],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geometry.size.width * progress)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: progress)
+                }
+            }
+            .frame(height: 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - 胶囊徽章
+
+struct PillBadge: View {
+    let icon: String
+    let label: String
+    let value: String
+    let isActive: Bool
+    var showPulse: Bool = false
+
+    @State private var isPulsing = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ZStack {
+                if showPulse {
+                    Circle()
+                        .fill(Theme.Colors.statusActive.opacity(0.3))
+                        .frame(width: 16, height: 16)
+                        .scaleEffect(isPulsing ? 1.5 : 1.0)
+                        .opacity(isPulsing ? 0 : 0.5)
+                }
+
+                Image(systemName: icon)
+                    .font(.system(size: 8))
+                    .foregroundColor(isActive ? Theme.Colors.statusActive : .secondary)
+            }
+            .frame(width: 16, height: 16)
+
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+
+            Text(value)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundColor(isActive ? .primary : .secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(isActive ? Color.accentColor.opacity(0.1) : Color.gray.opacity(0.1))
+        )
+        .overlay(
+            Capsule()
+                .stroke(
+                    isActive ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.15),
+                    lineWidth: 1)
+        )
+        .onAppear {
+            if showPulse {
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false)) {
+                    isPulsing = true
+                }
+            }
+        }
+        .onChange(of: showPulse) { _, newValue in
+            if newValue {
+                isPulsing = false
+                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false)) {
+                    isPulsing = true
+                }
+            } else {
+                isPulsing = false
+            }
         }
     }
 }
