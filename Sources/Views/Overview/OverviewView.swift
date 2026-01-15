@@ -7,6 +7,7 @@ struct OverviewView: View {
     @State private var selectedTrafficPeriod: TrafficPeriod = .today
     @State private var selectedRankType: RankType = .policy
     @State private var animateChart = false
+    @State private var isTestingSpeed = false
 
     enum TrafficPeriod: String, CaseIterable {
         case today = "今天"
@@ -128,26 +129,44 @@ struct OverviewView: View {
             title: "网络状态",
             iconColor: .green,
             trailing: {
-                // 测速按钮
-                Button(action: {}) {
+                // 测速按钮 - 带加载动画
+                Button(action: {
+                    withAnimation {
+                        isTestingSpeed = true
+                    }
+                    // 模拟测速完成
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation {
+                            isTestingSpeed = false
+                        }
+                    }
+                }) {
                     HStack(spacing: 4) {
-                        Image(systemName: "bolt.horizontal")
-                            .font(.system(size: 10))
-                        Text("测速")
+                        if isTestingSpeed {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .frame(width: 12, height: 12)
+                        } else {
+                            Image(systemName: "bolt.horizontal")
+                                .font(.system(size: 10))
+                        }
+                        Text(isTestingSpeed ? "测速中..." : "测速")
                             .font(.system(size: 11))
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(isTestingSpeed ? .accentColor : .secondary)
                 }
                 .buttonStyle(.plain)
+                .disabled(isTestingSpeed)
             }
         ) {
             VStack(spacing: 0) {
-                // 延迟指标 - 带信号强度
+                // 延迟指标 - 带信号强度和心跳动画
                 HStack(spacing: 0) {
                     EnhancedLatencyMetric(
                         icon: "globe.americas",
                         label: "互联网",
-                        latency: proxyManager.isRunning ? 45 : nil
+                        latency: proxyManager.isRunning ? 45 : nil,
+                        isTesting: isTestingSpeed
                     )
 
                     Divider()
@@ -157,7 +176,8 @@ struct OverviewView: View {
                     EnhancedLatencyMetric(
                         icon: "server.rack",
                         label: "DNS",
-                        latency: proxyManager.isRunning ? 28 : nil
+                        latency: proxyManager.isRunning ? 28 : nil,
+                        isTesting: isTestingSpeed
                     )
 
                     Divider()
@@ -167,7 +187,8 @@ struct OverviewView: View {
                     EnhancedLatencyMetric(
                         icon: "point.3.connected.trianglepath.dotted",
                         label: "路由",
-                        latency: proxyManager.isRunning ? 12 : nil
+                        latency: proxyManager.isRunning ? 12 : nil,
+                        isTesting: isTestingSpeed
                     )
                 }
 
@@ -181,22 +202,21 @@ struct OverviewView: View {
 
                 // 网络信息 - 胶囊徽章
                 HStack(spacing: 8) {
-                    NetworkInfoPill(
-                        icon: "wifi",
-                        label: "WiFi",
-                        isConnected: true
-                    )
+                    // 网络类型（自动检测）
+                    NetworkTypePill()
 
+                    // 本地IP
                     NetworkInfoPill(
-                        icon: "location.fill",
+                        icon: "network",
                         label: getLocalIP(),
                         isConnected: true
                     )
 
-                    NetworkInfoPill(
-                        icon: proxyManager.isRunning ? "checkmark.shield.fill" : "shield.slash",
-                        label: proxyManager.isRunning ? "代理已启用" : "代理未启用",
-                        isConnected: proxyManager.isRunning
+                    // 代理IP + 国旗
+                    ProxyLocationPill(
+                        isRunning: proxyManager.isRunning,
+                        countryCode: "US",
+                        ip: "Hidden"
                     )
                 }
             }
@@ -429,8 +449,12 @@ struct OverviewView: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text(formatBytes(proxyManager.trafficStats.uploadBytes + proxyManager.trafficStats.downloadBytes))
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                            Text(
+                                formatBytes(
+                                    proxyManager.trafficStats.uploadBytes
+                                        + proxyManager.trafficStats.downloadBytes)
+                            )
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                         }
                     }
                     .frame(width: 140)
@@ -482,9 +506,15 @@ struct OverviewView: View {
                     if proxyManager.isRunning {
                         // 排行列表
                         VStack(spacing: 6) {
-                            EnhancedRankRow(rank: 1, name: "DIRECT", traffic: "12.5 MB", maxTraffic: 12.5, color: .blue)
-                            EnhancedRankRow(rank: 2, name: "Proxy", traffic: "8.2 MB", maxTraffic: 12.5, color: .purple)
-                            EnhancedRankRow(rank: 3, name: "Reject", traffic: "0.5 MB", maxTraffic: 12.5, color: .gray)
+                            EnhancedRankRow(
+                                rank: 1, name: "DIRECT", traffic: "12.5 MB", maxTraffic: 12.5,
+                                color: .blue)
+                            EnhancedRankRow(
+                                rank: 2, name: "Proxy", traffic: "8.2 MB", maxTraffic: 12.5,
+                                color: .purple)
+                            EnhancedRankRow(
+                                rank: 3, name: "Reject", traffic: "0.5 MB", maxTraffic: 12.5,
+                                color: .gray)
                         }
                     } else {
                         VStack {
@@ -678,14 +708,15 @@ struct LatencyMetric: View {
     }
 }
 
-// MARK: - 增强延迟指标（带信号强度）
+// MARK: - 增强延迟指标（带信号强度和心跳动画）
 
 struct EnhancedLatencyMetric: View {
     let icon: String
     let label: String
     let latency: Int?
+    var isTesting: Bool = false
 
-    @State private var isAnimating = false
+    @State private var isPulsing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -699,14 +730,40 @@ struct EnhancedLatencyMetric: View {
                     .foregroundColor(.secondary)
             }
 
-            // 中间：延迟数值
+            // 中间：延迟数值（带心跳动画）- 固定高度防止跳动
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                if let latency = latency {
+                if isTesting {
+                    // 测速中显示加载动画
+                    HStack(spacing: 3) {
+                        ForEach(0..<3, id: \.self) { i in
+                            Circle()
+                                .fill(Color.accentColor)
+                                .frame(width: 6, height: 6)
+                                .opacity(isPulsing ? 1 : 0.3)
+                                .animation(
+                                    .easeInOut(duration: 0.5)
+                                    .repeatForever()
+                                    .delay(Double(i) * 0.15),
+                                    value: isPulsing
+                                )
+                        }
+                    }
+                    .onAppear { isPulsing = true }
+                    .onDisappear { isPulsing = false }
+                } else if let latency = latency {
+                    // 延迟数值 - 带脉冲效果
                     Text("\(latency)")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(latencyColor(latency))
                         .contentTransition(.numericText())
                         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: latency)
+                        .scaleEffect(isPulsing ? 1.05 : 1.0)
+                        .onAppear {
+                            // 心跳脉冲动画
+                            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                                isPulsing = true
+                            }
+                        }
                     Text("ms")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(latencyColor(latency).opacity(0.7))
@@ -716,13 +773,15 @@ struct EnhancedLatencyMetric: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .frame(height: 26) // 固定高度，避免切换时跳动
 
             // 底部：信号强度条
             HStack(spacing: 2) {
                 ForEach(0..<4) { index in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(signalBarColor(for: index))
+                        .fill(isTesting ? Color.accentColor.opacity(0.3) : signalBarColor(for: index))
                         .frame(width: 6, height: 4 + CGFloat(index) * 3)
+                        .animation(.easeInOut(duration: 0.3).delay(Double(index) * 0.05), value: latency)
                 }
             }
             .frame(height: 16, alignment: .bottom)
@@ -757,6 +816,107 @@ struct EnhancedLatencyMetric: View {
     }
 }
 
+// MARK: - 网络类型胶囊
+
+struct NetworkTypePill: View {
+    // 自动检测网络类型
+    private var networkType: (icon: String, label: String) {
+        // 实际应用中应该检测真实网络类型
+        // 这里简化处理，默认WiFi
+        return ("wifi", "WiFi")
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: networkType.icon)
+                .font(.system(size: 10))
+                .foregroundColor(Theme.Colors.statusActive)
+                .symbolRenderingMode(.hierarchical)
+
+            Text(networkType.label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.primary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Theme.Colors.statusActive.opacity(0.1))
+        )
+        .overlay(
+            Capsule()
+                .stroke(Theme.Colors.statusActive.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - 代理位置胶囊（带国旗）
+
+struct ProxyLocationPill: View {
+    let isRunning: Bool
+    let countryCode: String
+    let ip: String
+
+    // 国旗emoji映射
+    private var flagEmoji: String {
+        let base: UInt32 = 127397
+        var emoji = ""
+        for scalar in countryCode.uppercased().unicodeScalars {
+            if let unicode = UnicodeScalar(base + scalar.value) {
+                emoji.append(String(unicode))
+            }
+        }
+        return emoji
+    }
+
+    // 国家名称映射
+    private var countryName: String {
+        switch countryCode.uppercased() {
+        case "US": return "美国"
+        case "JP": return "日本"
+        case "HK": return "香港"
+        case "SG": return "新加坡"
+        case "TW": return "台湾"
+        case "KR": return "韩国"
+        case "DE": return "德国"
+        case "GB", "UK": return "英国"
+        default: return countryCode
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if isRunning {
+                // 国旗
+                Text(flagEmoji)
+                    .font(.system(size: 12))
+
+                Text(countryName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.primary)
+            } else {
+                Image(systemName: "shield.slash")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+
+                Text("未连接")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(isRunning ? Color.purple.opacity(0.1) : Color.gray.opacity(0.1))
+        )
+        .overlay(
+            Capsule()
+                .stroke(isRunning ? Color.purple.opacity(0.2) : Color.gray.opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
 // MARK: - 网络信息胶囊
 
 struct NetworkInfoPill: View {
@@ -779,7 +939,8 @@ struct NetworkInfoPill: View {
         .padding(.vertical, 8)
         .background(
             Capsule()
-                .fill(isConnected ? Theme.Colors.statusActive.opacity(0.1) : Color.gray.opacity(0.1))
+                .fill(
+                    isConnected ? Theme.Colors.statusActive.opacity(0.1) : Color.gray.opacity(0.1))
         )
         .overlay(
             Capsule()
@@ -1957,7 +2118,9 @@ struct EnhancedTrafficRing: View {
                 .trim(from: 0, to: total > 0 ? 1.0 : 0)
                 .stroke(
                     LinearGradient(
-                        colors: [Theme.Colors.chartDownload, Theme.Colors.chartDownload.opacity(0.7)],
+                        colors: [
+                            Theme.Colors.chartDownload, Theme.Colors.chartDownload.opacity(0.7),
+                        ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
