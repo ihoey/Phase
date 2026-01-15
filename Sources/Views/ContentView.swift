@@ -160,9 +160,10 @@ struct ContentView: View {
                     Button(action: { proxyManager.toggleProxy() }) {
                         Image(
                             systemName: proxyManager.isRunning
-                                ? "power.circle.fill" : "power.circle"
+                                ? "bolt.circle.fill" : "bolt.circle"
                         )
-                        .font(.system(size: 20))
+                        .font(.system(size: 20, weight: .medium))
+                        .symbolRenderingMode(.hierarchical)
                         .foregroundColor(
                             proxyManager.isRunning ? Theme.Colors.statusActive : .secondary)
                     }
