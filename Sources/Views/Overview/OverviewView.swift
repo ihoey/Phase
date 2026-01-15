@@ -382,10 +382,14 @@ struct OverviewView: View {
             title: "流量汇总",
             iconColor: .cyan,
             trailing: {
-                // 时间段选择器 - 移到右上角
+                // 时间段选择器 - 移到右上角，带平滑过渡动画
                 HStack(spacing: 0) {
                     ForEach(TrafficPeriod.allCases, id: \.self) { period in
-                        Button(action: { selectedTrafficPeriod = period }) {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                selectedTrafficPeriod = period
+                            }
+                        }) {
                             Text(period.rawValue)
                                 .font(.system(size: 10, weight: .medium))
                                 .padding(.horizontal, 10)
@@ -408,6 +412,8 @@ struct OverviewView: View {
                 .padding(2)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(6)
+                .animation(
+                    .spring(response: 0.3, dampingFraction: 0.8), value: selectedTrafficPeriod)
             }
         ) {
             HStack(spacing: 20) {
@@ -742,8 +748,8 @@ struct EnhancedLatencyMetric: View {
                                 .opacity(isPulsing ? 1 : 0.3)
                                 .animation(
                                     .easeInOut(duration: 0.5)
-                                    .repeatForever()
-                                    .delay(Double(i) * 0.15),
+                                        .repeatForever()
+                                        .delay(Double(i) * 0.15),
                                     value: isPulsing
                                 )
                         }
@@ -760,7 +766,9 @@ struct EnhancedLatencyMetric: View {
                         .scaleEffect(isPulsing ? 1.05 : 1.0)
                         .onAppear {
                             // 心跳脉冲动画
-                            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                            withAnimation(
+                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                            ) {
                                 isPulsing = true
                             }
                         }
@@ -773,15 +781,18 @@ struct EnhancedLatencyMetric: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .frame(height: 26) // 固定高度，避免切换时跳动
+            .frame(height: 26)  // 固定高度，避免切换时跳动
 
             // 底部：信号强度条
             HStack(spacing: 2) {
                 ForEach(0..<4) { index in
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(isTesting ? Color.accentColor.opacity(0.3) : signalBarColor(for: index))
+                        .fill(
+                            isTesting ? Color.accentColor.opacity(0.3) : signalBarColor(for: index)
+                        )
                         .frame(width: 6, height: 4 + CGFloat(index) * 3)
-                        .animation(.easeInOut(duration: 0.3).delay(Double(index) * 0.05), value: latency)
+                        .animation(
+                            .easeInOut(duration: 0.3).delay(Double(index) * 0.05), value: latency)
                 }
             }
             .frame(height: 16, alignment: .bottom)
@@ -912,7 +923,8 @@ struct ProxyLocationPill: View {
         )
         .overlay(
             Capsule()
-                .stroke(isRunning ? Color.purple.opacity(0.2) : Color.gray.opacity(0.15), lineWidth: 1)
+                .stroke(
+                    isRunning ? Color.purple.opacity(0.2) : Color.gray.opacity(0.15), lineWidth: 1)
         )
     }
 }
@@ -2101,6 +2113,9 @@ struct EnhancedTrafficRing: View {
     let upload: Int64
     let download: Int64
 
+    @State private var animatedProgress: Double = 0
+    @State private var animatedUploadRatio: Double = 0
+
     private var total: Int64 { upload + download }
     private var uploadRatio: Double {
         guard total > 0 else { return 0 }
@@ -2109,17 +2124,32 @@ struct EnhancedTrafficRing: View {
 
     var body: some View {
         ZStack {
-            // 底层灰色环
+            // 底层灰色环 + 内阴影效果
             Circle()
                 .stroke(Color.gray.opacity(0.15), lineWidth: 10)
+                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
 
-            // 下载环（蓝色）
+            // 内阴影圆
             Circle()
-                .trim(from: 0, to: total > 0 ? 1.0 : 0)
+                .fill(
+                    RadialGradient(
+                        colors: [Color.clear, Color.black.opacity(0.03)],
+                        center: .center,
+                        startRadius: 30,
+                        endRadius: 50
+                    )
+                )
+                .padding(12)
+
+            // 下载环（蓝色）- 带绘制动画
+            Circle()
+                .trim(from: 0, to: animatedProgress)
                 .stroke(
                     LinearGradient(
                         colors: [
-                            Theme.Colors.chartDownload, Theme.Colors.chartDownload.opacity(0.7),
+                            Theme.Colors.chartDownload,
+                            Theme.Colors.chartDownload.opacity(0.8),
+                            Theme.Colors.chartDownload.opacity(0.6),
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -2127,19 +2157,25 @@ struct EnhancedTrafficRing: View {
                     style: StrokeStyle(lineWidth: 10, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                .shadow(color: Theme.Colors.chartDownload.opacity(0.3), radius: 4, x: 0, y: 2)
 
-            // 上传环（青色）叠加
+            // 上传环（青色）叠加 - 带绘制动画
             Circle()
-                .trim(from: 0, to: uploadRatio)
+                .trim(from: 0, to: animatedUploadRatio)
                 .stroke(
                     LinearGradient(
-                        colors: [Theme.Colors.chartUpload, Theme.Colors.chartUpload.opacity(0.7)],
+                        colors: [
+                            Theme.Colors.chartUpload,
+                            Theme.Colors.chartUpload.opacity(0.8),
+                            Theme.Colors.chartUpload.opacity(0.6),
+                        ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
                     style: StrokeStyle(lineWidth: 10, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                .shadow(color: Theme.Colors.chartUpload.opacity(0.3), radius: 4, x: 0, y: 2)
 
             // 中心信息
             VStack(spacing: 2) {
@@ -2154,9 +2190,25 @@ struct EnhancedTrafficRing: View {
                     )
                 Text(formatBytes(total))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .contentTransition(.numericText())
             }
         }
-        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: total)
+        .onAppear {
+            // 绘制动画：从0到实际值
+            withAnimation(.easeOut(duration: 1.0).delay(0.2)) {
+                animatedProgress = total > 0 ? 1.0 : 0
+            }
+            withAnimation(.easeOut(duration: 0.8).delay(0.4)) {
+                animatedUploadRatio = uploadRatio
+            }
+        }
+        .onChange(of: total) { _, _ in
+            // 数据变化时重新动画
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                animatedProgress = total > 0 ? 1.0 : 0
+                animatedUploadRatio = uploadRatio
+            }
+        }
     }
 
     private func formatBytes(_ bytes: Int64) -> String {
@@ -2213,6 +2265,9 @@ struct EnhancedRankRow: View {
     let maxTraffic: Double
     let color: Color
 
+    @State private var isHovered = false
+    @State private var animatedProgress: Double = 0
+
     private var trafficValue: Double {
         // 简单解析 traffic 字符串
         let number = traffic.components(separatedBy: " ").first ?? "0"
@@ -2226,16 +2281,34 @@ struct EnhancedRankRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // 排名徽章
+            // 排名徽章 - 金银铜色
             ZStack {
                 Circle()
-                    .fill(rankColor.opacity(0.15))
-                    .frame(width: 20, height: 20)
+                    .fill(
+                        LinearGradient(
+                            colors: [rankColor.opacity(0.2), rankColor.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 22, height: 22)
+                    .overlay(
+                        Circle()
+                            .stroke(rankColor.opacity(0.3), lineWidth: 1)
+                    )
 
                 if rank == 1 {
                     Image(systemName: "crown.fill")
-                        .font(.system(size: 9))
+                        .font(.system(size: 10))
                         .foregroundColor(.orange)
+                } else if rank == 2 {
+                    Image(systemName: "medal.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(Color(red: 0.75, green: 0.75, blue: 0.8))  // 银色
+                } else if rank == 3 {
+                    Image(systemName: "medal.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(Color(red: 0.8, green: 0.5, blue: 0.2))  // 铜色
                 } else {
                     Text("\(rank)")
                         .font(.system(size: 10, weight: .bold))
@@ -2257,7 +2330,7 @@ struct EnhancedRankRow: View {
                         .foregroundColor(.secondary)
                 }
 
-                // 进度条
+                // 进度条 - 带动画
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 2)
@@ -2266,24 +2339,49 @@ struct EnhancedRankRow: View {
                         RoundedRectangle(cornerRadius: 2)
                             .fill(
                                 LinearGradient(
-                                    colors: [color.opacity(0.6), color],
+                                    colors: isHovered
+                                        ? [color, color.opacity(0.8)]
+                                        : [color.opacity(0.6), color],
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 )
                             )
-                            .frame(width: geometry.size.width * progress)
+                            .frame(width: geometry.size.width * animatedProgress)
+                            .shadow(color: isHovered ? color.opacity(0.4) : .clear, radius: 2)
                     }
                 }
                 .frame(height: 4)
+            }
+        }
+        .padding(.vertical, 2)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isHovered ? Color.gray.opacity(0.08) : Color.clear)
+        )
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .onAppear {
+            // 进度条绘制动画
+            withAnimation(.easeOut(duration: 0.6).delay(Double(rank) * 0.1)) {
+                animatedProgress = progress
+            }
+        }
+        .onChange(of: progress) { _, newValue in
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                animatedProgress = newValue
             }
         }
     }
 
     private var rankColor: Color {
         switch rank {
-        case 1: return .orange
-        case 2: return .gray
-        case 3: return .brown
+        case 1: return .orange  // 金色
+        case 2: return Color(red: 0.6, green: 0.6, blue: 0.7)  // 银色
+        case 3: return Color(red: 0.8, green: 0.5, blue: 0.2)  // 铜色
         default: return .secondary
         }
     }
