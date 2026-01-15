@@ -80,7 +80,7 @@ struct OverviewView: View {
 
                     Spacer()
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: 12) {
                         Text(proxyManager.isSystemProxyEnabled ? "已启用" : "未启用")
                             .font(Theme.Typography.callout)
                             .foregroundColor(
@@ -93,18 +93,37 @@ struct OverviewView: View {
                                 proxyManager.toggleSystemProxy()
                             }
                         }) {
-                            Image(
-                                systemName: proxyManager.isSystemProxyEnabled
-                                    ? "toggle.on" : "toggle.off"
+                            HStack(spacing: 4) {
+                                Image(
+                                    systemName: proxyManager.isSystemProxyEnabled
+                                        ? "checkmark.circle.fill" : "circle"
+                                )
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(
+                                    proxyManager.isRunning
+                                        ? (proxyManager.isSystemProxyEnabled
+                                            ? Theme.Colors.statusActive
+                                            : Theme.Colors.secondaryText)
+                                        : Theme.Colors.tertiaryText)
+                                
+                                Text(proxyManager.isSystemProxyEnabled ? "关闭" : "开启")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(
+                                        proxyManager.isRunning
+                                            ? Theme.Colors.accent
+                                            : Theme.Colors.tertiaryText)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                proxyManager.isRunning
+                                    ? Theme.Colors.accent.opacity(0.1)
+                                    : Color.gray.opacity(0.1)
                             )
-                            .font(.system(size: 16))
-                            .foregroundColor(
-                                proxyManager.isSystemProxyEnabled
-                                    ? Theme.Colors.statusActive : Theme.Colors.tertiaryText)
+                            .cornerRadius(6)
                         }
                         .buttonStyle(.plain)
                         .disabled(!proxyManager.isRunning)
-                        .opacity(proxyManager.isRunning ? 1.0 : 0.5)
                     }
                 }
 
