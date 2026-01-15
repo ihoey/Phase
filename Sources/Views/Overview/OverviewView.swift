@@ -52,7 +52,7 @@ struct OverviewView: View {
 
     private var runningStatusCard: some View {
         ModernCard(icon: "desktopcomputer", title: "运行状态", iconColor: .blue) {
-            VStack(spacing: 12) {
+            VStack(spacing: 0) {
                 // 主要状态指标
                 HStack(spacing: 0) {
                     // 运行时长 - 翻牌器样式
@@ -85,7 +85,11 @@ struct OverviewView: View {
                     )
                 }
 
+                Spacer(minLength: 12)
+
                 Divider()
+
+                Spacer(minLength: 12)
 
                 // 底部状态栏 - 胶囊徽章
                 HStack(spacing: 12) {
@@ -160,7 +164,7 @@ struct OverviewView: View {
                 .disabled(isTestingSpeed)
             }
         ) {
-            VStack(spacing: 12) {
+            VStack(spacing: 0) {
                 // 延迟指标 - 带信号强度和心跳动画
                 HStack(spacing: 0) {
                     EnhancedLatencyMetric(
@@ -193,7 +197,11 @@ struct OverviewView: View {
                     )
                 }
 
+                Spacer(minLength: 12)
+
                 Divider()
+
+                Spacer(minLength: 12)
 
                 // 网络信息 - 胶囊徽章
                 HStack(spacing: 8) {
