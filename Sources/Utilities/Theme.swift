@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Phase 设计系统主题
-/// 遵循 macOS 原生设计规范，实现克制、精致的视觉风格
+/// 现代深色设计，灵感来自专业代理工具
 enum Theme {
     
     // MARK: - Colors
@@ -10,17 +10,17 @@ enum Theme {
         /// 主色调 - 系统蓝（用于强调和操作按钮）
         static let accent = Color.accentColor
         
-        /// 状态色 - 启用（绿色）
-        static let statusActive = Color.green
+        /// 状态色 - 启用（翠绿色）
+        static let statusActive = Color(red: 0.2, green: 0.85, blue: 0.55)
         
         /// 状态色 - 禁用（灰色）
         static let statusInactive = Color.gray
         
-        /// 状态色 - 警告（黄色）
-        static let statusWarning = Color.orange
+        /// 状态色 - 警告（橙黄色）
+        static let statusWarning = Color(red: 1.0, green: 0.75, blue: 0.3)
         
         /// 状态色 - 错误（红色）
-        static let statusError = Color.red
+        static let statusError = Color(red: 1.0, green: 0.4, blue: 0.4)
         
         /// 背景色 - 主背景
         static let background = Color(nsColor: .windowBackgroundColor)
@@ -45,6 +45,60 @@ enum Theme {
         
         /// 毛玻璃材质背景
         static let glassMaterial = Color.clear
+        
+        // MARK: - 渐变色
+        
+        /// 上传速度渐变 - 青绿色
+        static let uploadGradient = LinearGradient(
+            colors: [Color(red: 0.2, green: 0.9, blue: 0.7), Color(red: 0.1, green: 0.7, blue: 0.5)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        
+        /// 下载速度渐变 - 蓝紫色
+        static let downloadGradient = LinearGradient(
+            colors: [Color(red: 0.4, green: 0.6, blue: 1.0), Color(red: 0.3, green: 0.4, blue: 0.9)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        
+        /// 连接状态渐变 - 绿色
+        static let connectedGradient = LinearGradient(
+            colors: [Color(red: 0.3, green: 0.9, blue: 0.5), Color(red: 0.2, green: 0.7, blue: 0.4)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        
+        /// 网络延迟渐变 - 黄橙色
+        static let latencyGradient = LinearGradient(
+            colors: [Color(red: 1.0, green: 0.8, blue: 0.3), Color(red: 1.0, green: 0.6, blue: 0.2)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        
+        /// 流量图表上传色
+        static let chartUpload = Color(red: 0.2, green: 0.9, blue: 0.7)
+        
+        /// 流量图表下载色
+        static let chartDownload = Color(red: 0.4, green: 0.6, blue: 1.0)
+        
+        /// 粉紫色渐变（用于总流量）
+        static let totalGradient = LinearGradient(
+            colors: [Color(red: 0.9, green: 0.4, blue: 0.9), Color(red: 0.6, green: 0.3, blue: 0.8)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        
+        /// 圆环进度条渐变
+        static let ringGradient = AngularGradient(
+            colors: [
+                Color(red: 0.3, green: 0.8, blue: 1.0),
+                Color(red: 0.5, green: 0.4, blue: 1.0),
+                Color(red: 0.9, green: 0.4, blue: 0.8),
+                Color(red: 0.3, green: 0.8, blue: 1.0)
+            ],
+            center: .center
+        )
     }
     
     // MARK: - Typography

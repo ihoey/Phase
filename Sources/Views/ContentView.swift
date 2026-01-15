@@ -1,26 +1,68 @@
 import SwiftUI
 
+/// 导航分组
+enum NavigationGroup: String, CaseIterable {
+    case main = ""
+    case proxy = "代理"
+    case settings = "设置"
+    case experimental = "实验"
+}
+
 /// 导航目标枚举
 enum NavigationItem: String, CaseIterable, Identifiable {
-    case overview = "总览"
-    case nodes = "节点"
-    case subscriptions = "订阅"
+    case overview = "概览"
     case traffic = "流量"
-    case rules = "规则"
+    case connections = "连接"
     case logs = "日志"
+    case nodes = "节点"
+    case rules = "规则"
+    case resources = "资源"
+    case config = "配置"
+    case advanced = "高级"
+    case topology = "拓扑"
+    case subscriptions = "订阅"
     case settings = "设置"
 
     var id: String { rawValue }
 
     var icon: String {
         switch self {
-        case .overview: return "gauge.with.dots.needle.67percent"
-        case .nodes: return "network"
-        case .subscriptions: return "link"
-        case .traffic: return "chart.bar.fill"
-        case .rules: return "list.bullet.rectangle"
-        case .logs: return "doc.text"
+        case .overview: return "squares.leading.rectangle"
+        case .traffic: return "chart.line.uptrend.xyaxis"
+        case .connections: return "point.3.connected.trianglepath.dotted"
+        case .logs: return "doc.text.magnifyingglass"
+        case .nodes: return "server.rack"
+        case .rules: return "list.bullet.indent"
+        case .resources: return "externaldrive.connected.to.line.below"
+        case .config: return "slider.horizontal.3"
+        case .advanced: return "gearshape.2"
+        case .topology: return "point.topleft.down.to.point.bottomright.curvepath"
+        case .subscriptions: return "link.badge.plus"
         case .settings: return "gearshape"
+        }
+    }
+    
+    var group: NavigationGroup {
+        switch self {
+        case .overview, .traffic, .connections, .logs:
+            return .main
+        case .nodes, .rules, .resources, .subscriptions:
+            return .proxy
+        case .config, .advanced:
+            return .settings
+        case .topology:
+            return .experimental
+        case .settings:
+            return .settings
+        }
+    }
+    
+    static var groupedItems: [(group: NavigationGroup, items: [NavigationItem])] {
+        let groups: [NavigationGroup] = [.main, .proxy, .settings, .experimental]
+        return groups.compactMap { group in
+            let items = NavigationItem.allCases.filter { $0.group == group && $0 != .settings }
+            if items.isEmpty { return nil }
+            return (group, items)
         }
     }
 }
@@ -49,84 +91,305 @@ struct Sidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             // Logo 区域
-            HStack {
+            HStack(spacing: 10) {
+                // Logo 图标
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 32, height: 32)
+                    
+                    Image(systemName: "bolt.shield.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                
                 Text("Phase")
-                    .font(Theme.Typography.title2)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundColor(Theme.Colors.primaryText)
+                
                 Spacer()
             }
-            .padding(Theme.Spacing.lg)
-
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.vertical, Theme.Spacing.md)
+            
             Divider()
+                .padding(.horizontal, Theme.Spacing.md)
 
-            // 导航列表
-            List(NavigationItem.allCases, selection: $selectedItem) { item in
-                NavigationLink(value: item) {
-                    Label(item.rawValue, systemImage: item.icon)
-                        .font(Theme.Typography.body)
+            // 分组导航列表
+            ScrollView {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(NavigationItem.groupedItems, id: \.group) { group, items in
+                        VStack(alignment: .leading, spacing: 4) {
+                            if !group.rawValue.isEmpty {
+                                Text(group.rawValue)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Theme.Colors.tertiaryText)
+                                    .textCase(.uppercase)
+                                    .padding(.horizontal, Theme.Spacing.lg)
+                                    .padding(.top, Theme.Spacing.md)
+                                    .padding(.bottom, 4)
+                            }
+                            
+                            ForEach(items) { item in
+                                SidebarButton(
+                                    item: item,
+                                    isSelected: selectedItem == item
+                                ) {
+                                    selectedItem = item
+                                }
+                            }
+                        }
+                    }
                 }
+                .padding(.vertical, Theme.Spacing.sm)
             }
-            .listStyle(.sidebar)
 
             Spacer()
+            
+            Divider()
+                .padding(.horizontal, Theme.Spacing.md)
 
-            // 底部状态栏
-            VStack(spacing: Theme.Spacing.sm) {
-                Divider()
-
-                HStack {
-                    Circle()
-                        .fill(
-                            proxyManager.isRunning
-                                ? Theme.Colors.statusActive : Theme.Colors.statusInactive
-                        )
-                        .frame(width: 8, height: 8)
-
-                    Text(proxyManager.isRunning ? "运行中" : "已停止")
-                        .font(Theme.Typography.caption)
-                        .foregroundColor(Theme.Colors.secondaryText)
-
-                    Spacer()
+            // 底部工具栏
+            HStack(spacing: Theme.Spacing.lg) {
+                // 关于按钮
+                Button(action: {}) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 14))
+                        Text("关于")
+                            .font(.system(size: 13))
+                    }
+                    .foregroundColor(Theme.Colors.secondaryText)
                 }
-                .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.vertical, Theme.Spacing.md)
+                .buttonStyle(.plain)
+                
+                Spacer()
+                
+                // 设置按钮
+                Button(action: { selectedItem = .settings }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 14))
+                        Text("设置")
+                            .font(.system(size: 13))
+                    }
+                    .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .buttonStyle(.plain)
+                
+                // 外部链接按钮
+                Button(action: {}) {
+                    Image(systemName: "arrow.up.forward.square")
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                }
+                .buttonStyle(.plain)
             }
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.vertical, Theme.Spacing.md)
         }
         .frame(minWidth: Theme.Layout.sidebarWidth)
+    }
+}
+
+/// 侧边栏按钮
+struct SidebarButton: View {
+    let item: NavigationItem
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: item.icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isSelected ? .white : Theme.Colors.secondaryText)
+                    .frame(width: 20)
+                
+                Text(item.rawValue)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(isSelected ? .white : Theme.Colors.primaryText)
+                
+                Spacer()
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(isSelected ? Color.accentColor : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Theme.Spacing.sm)
     }
 }
 
 struct DetailView: View {
     let selectedItem: NavigationItem
     @StateObject private var trafficTracker = TrafficTracker()
+    @EnvironmentObject var proxyManager: ProxyManager
 
     var body: some View {
-        Group {
-            switch selectedItem {
-            case .overview:
-                OverviewView()
-            case .nodes:
-                NodesView()
-            case .subscriptions:
-                SubscriptionView()
-            case .traffic:
-                TrafficDetailView()
-                    .environmentObject(trafficTracker)
-                    .onAppear {
-                        // 添加模拟数据用于测试
-                        if trafficTracker.processes.isEmpty {
-                            trafficTracker.addMockData()
+        VStack(spacing: 0) {
+            // 顶部工具栏
+            TopToolbar()
+            
+            Divider()
+            
+            // 主内容
+            Group {
+                switch selectedItem {
+                case .overview:
+                    OverviewView()
+                case .nodes:
+                    NodesView()
+                case .subscriptions:
+                    SubscriptionView()
+                case .traffic:
+                    TrafficDetailView()
+                        .environmentObject(trafficTracker)
+                        .onAppear {
+                            if trafficTracker.processes.isEmpty {
+                                trafficTracker.addMockData()
+                            }
                         }
+                case .rules:
+                    RulesView()
+                case .logs:
+                    LogsView()
+                case .settings, .config, .advanced:
+                    SettingsView()
+                case .connections:
+                    PlaceholderView(title: "连接", icon: "point.3.connected.trianglepath.dotted")
+                case .resources:
+                    PlaceholderView(title: "资源", icon: "externaldrive.connected.to.line.below")
+                case .topology:
+                    PlaceholderView(title: "拓扑", icon: "point.topleft.down.to.point.bottomright.curvepath")
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - 顶部工具栏
+
+struct TopToolbar: View {
+    @EnvironmentObject var proxyManager: ProxyManager
+    @State private var selectedMode: ProxyMode = .rule
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // 左侧标题
+            Text("Phase 面板")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.primary)
+            
+            Spacer()
+            
+            // 通知按钮
+            Button(action: {}) {
+                Image(systemName: "bell")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+            
+            // 配置选择器
+            Menu {
+                Button("Default Config") {}
+                Button("Work Config") {}
+                Divider()
+                Button("导入配置...") {}
+            } label: {
+                HStack(spacing: 6) {
+                    Text("Config")
+                        .font(.system(size: 13))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 10))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.gray.opacity(0.15))
+                .cornerRadius(6)
+            }
+            .menuStyle(.borderlessButton)
+            .frame(width: 100)
+            
+            // 模式切换
+            HStack(spacing: 0) {
+                ForEach(ProxyMode.allCases, id: \.self) { mode in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            proxyManager.switchMode(mode)
+                        }
+                    }) {
+                        Text(mode.rawValue)
+                            .font(.system(size: 12, weight: .medium))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .background(
+                                proxyManager.proxyMode == mode
+                                    ? Color.accentColor
+                                    : Color.clear
+                            )
+                            .foregroundColor(
+                                proxyManager.proxyMode == mode
+                                    ? .white
+                                    : .secondary
+                            )
+                            .cornerRadius(6)
                     }
-            case .rules:
-                RulesView()
-            case .logs:
-                LogsView()
-            case .settings:
-                SettingsView()
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(3)
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+            
+            Divider()
+                .frame(height: 20)
+            
+            // 快捷操作按钮
+            HStack(spacing: 8) {
+                // 系统代理开关
+                Button(action: { proxyManager.toggleSystemProxy() }) {
+                    Image(systemName: proxyManager.isSystemProxyEnabled ? "globe" : "globe.badge.chevron.backward")
+                        .font(.system(size: 14))
+                        .foregroundColor(proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help("系统代理")
+                .disabled(!proxyManager.isRunning)
+                
+                // 刷新按钮
+                Button(action: {}) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 14))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("刷新连接")
+                
+                // 主开关
+                Button(action: { proxyManager.toggleProxy() }) {
+                    Image(systemName: proxyManager.isRunning ? "power.circle.fill" : "power.circle")
+                        .font(.system(size: 18))
+                        .foregroundColor(proxyManager.isRunning ? Theme.Colors.statusActive : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(proxyManager.isRunning ? "停止代理" : "启动代理")
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(.regularMaterial)
     }
 }
 

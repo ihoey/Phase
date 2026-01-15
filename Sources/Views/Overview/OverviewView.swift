@@ -1,546 +1,461 @@
 import Charts
 import SwiftUI
 
-/// 总览页面 - macOS 原生设计仪表板
+/// 总览页面 - 现代化仪表板设计
 struct OverviewView: View {
     @EnvironmentObject var proxyManager: ProxyManager
-    @State private var selectedPeriod: TrafficPeriod = .today
-    @State private var hoveredCard: String?
+    @State private var selectedTrafficPeriod: TrafficPeriod = .today
+    @State private var selectedRankType: RankType = .policy
+    @State private var animateChart = false
 
     enum TrafficPeriod: String, CaseIterable {
-        case today = "今日"
+        case today = "今天"
         case month = "本月"
+        case lastMonth = "上月"
+    }
+    
+    enum RankType: String, CaseIterable {
+        case policy = "策略"
+        case process = "进程"
+        case network = "网络接口"
+        case host = "主机名"
     }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Top Row: Status, Mode, Node (Fixed Height)
-                HStack(spacing: 16) {
-                    mainStatusCard
-                        .frame(maxWidth: .infinity)
-
-                    VStack(spacing: 16) {
-                        modeControlCard
-                            .frame(maxHeight: .infinity)
-
-                        nodeInfoCard
-                            .frame(maxHeight: .infinity)
-                    }
-                    .frame(maxWidth: .infinity)
+            VStack(spacing: 20) {
+                // 第一行：运行状态 + 网络状态
+                HStack(spacing: 20) {
+                    runningStatusCard
+                    networkStatusCard
                 }
-                .frame(height: 170)  // Reduced from 220
-
-                // Middle Row: Real-time Traffic (Fixed Height)
-                realTimeTrafficCard
-                    .frame(height: 190)  // Reduced from 240
-
-                // Bottom Row: Details (Grid)
-                LazyVGrid(
-                    columns: [
-                        GridItem(.flexible(), spacing: 16),
-                        GridItem(.flexible(), spacing: 16),
-                        GridItem(.flexible(), spacing: 16),
-                    ], spacing: 16
-                ) {
-                    trafficStatsCard
-                        .frame(height: 150)  // Reduced from 180
-
-                    activeConnectionsCard
-                        .frame(height: 150)  // Reduced from 180
-
-                    topApplicationsCard
-                        .frame(height: 150)  // Reduced from 180
+                .frame(height: 180)
+                
+                // 第二行：实时流量 + 7天流量趋势
+                HStack(spacing: 20) {
+                    realTimeTrafficCard
+                    weeklyTrafficCard
                 }
+                .frame(height: 200)
+                
+                // 第三行：流量汇总
+                trafficSummaryCard
             }
-            .padding(20)
+            .padding(24)
         }
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    // MARK: - Top Row Cards
-
-    private var mainStatusCard: some View {
-        GlassCard {
+    // MARK: - 运行状态卡片
+    
+    private var runningStatusCard: some View {
+        ModernCard(icon: "desktopcomputer", title: "运行状态", iconColor: .blue) {
             VStack(spacing: 16) {
-                // Animated Status Ring
-                ZStack {
-                    // Outer Ripple
-                    Circle()
-                        .strokeBorder(
-                            proxyManager.isRunning
-                                ? Color.green.opacity(0.3) : Color.gray.opacity(0.1),
-                            lineWidth: 1
-                        )
-                        .frame(width: 70, height: 70)
-
-                    // Middle Ring
-                    Circle()
-                        .fill(
-                            proxyManager.isRunning
-                                ? Color.green.opacity(0.1)
-                                : Color.gray.opacity(0.05)
-                        )
-                        .frame(width: 56, height: 56)
-
-                    // Core Button
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            proxyManager.toggleProxy()
-                        }
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    proxyManager.isRunning
-                                        ? Color.green.gradient
-                                        : Color.gray.opacity(0.2).gradient
-                                )
-                                .shadow(
-                                    color: proxyManager.isRunning ? .green.opacity(0.4) : .clear,
-                                    radius: 8, y: 4
-                                )
-
-                            Image(systemName: "power")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(proxyManager.isRunning ? .white : .secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: 48, height: 48)
+                // 主要状态指标
+                HStack(spacing: 0) {
+                    StatusMetric(
+                        icon: "clock",
+                        label: "运行时长",
+                        value: formattedUptime,
+                        valueColor: Theme.Colors.statusActive
+                    )
+                    
+                    Divider()
+                        .frame(height: 40)
+                        .padding(.horizontal, 12)
+                    
+                    StatusMetric(
+                        icon: "link",
+                        label: "连接数",
+                        value: proxyManager.isRunning ? "12" : "0",
+                        valueColor: .primary
+                    )
+                    
+                    Divider()
+                        .frame(height: 40)
+                        .padding(.horizontal, 12)
+                    
+                    StatusMetric(
+                        icon: "memorychip",
+                        label: "内存",
+                        value: proxyManager.isRunning ? "48 MB" : "0 MB",
+                        valueColor: .primary
+                    )
                 }
-                .padding(.top, 8)
-
-                VStack(spacing: 4) {
-                    Text(proxyManager.isRunning ? "Protected" : "Disconnected")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-
-                    if let startTime = proxyManager.startTime {
-                        Text("\(formatDuration(Date().timeIntervalSince(startTime)))")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    } else {
-                        Text("Ready to connect")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
+                
+                Divider()
+                
+                // 底部状态栏
+                HStack(spacing: 24) {
+                    StatusBadge(
+                        icon: "circle.fill",
+                        label: "状态",
+                        value: proxyManager.isRunning ? "已连接" : "已断开",
+                        isActive: proxyManager.isRunning
+                    )
+                    
+                    StatusBadge(
+                        icon: "cpu",
+                        label: "内核",
+                        value: "sing-box",
+                        isActive: true
+                    )
+                    
+                    StatusBadge(
+                        icon: "apple.logo",
+                        label: "系统",
+                        value: "macOS 15.0",
+                        isActive: true
+                    )
+                    
+                    StatusBadge(
+                        icon: "number",
+                        label: "版本",
+                        value: "1.0.0",
+                        isActive: true
+                    )
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .padding(12)
         }
     }
-
-    private var modeControlCard: some View {
-        GlassCard {
-            HStack(spacing: 12) {
-                // Mode Selector
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("代理模式", systemImage: "arrow.triangle.branch")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 6) {
-                        ForEach(ProxyMode.allCases, id: \.self) { mode in
-                            Button(action: {
-                                withAnimation { proxyManager.switchMode(mode) }
-                            }) {
-                                Text(mode.rawValue.prefix(1))
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .frame(width: 28, height: 28)
+    
+    // MARK: - 网络状态卡片
+    
+    private var networkStatusCard: some View {
+        ModernCard(icon: "globe", title: "网络状态", iconColor: .green) {
+            VStack(spacing: 16) {
+                // 延迟指标
+                HStack(spacing: 0) {
+                    LatencyMetric(
+                        icon: "globe.americas",
+                        label: "互联网",
+                        latency: proxyManager.isRunning ? 235 : nil
+                    )
+                    
+                    Divider()
+                        .frame(height: 40)
+                        .padding(.horizontal, 12)
+                    
+                    LatencyMetric(
+                        icon: "server.rack",
+                        label: "DNS",
+                        latency: proxyManager.isRunning ? 754 : nil
+                    )
+                    
+                    Divider()
+                        .frame(height: 40)
+                        .padding(.horizontal, 12)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "point.3.connected.trianglepath.dotted")
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                            Text("路由")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                        }
+                        Text("-")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                
+                Divider()
+                
+                // 网络信息
+                HStack(spacing: 24) {
+                    StatusBadge(
+                        icon: "wifi",
+                        label: "网络",
+                        value: "Ethernet",
+                        isActive: true
+                    )
+                    
+                    StatusBadge(
+                        icon: "network",
+                        label: "本地IP",
+                        value: getLocalIP(),
+                        isActive: true
+                    )
+                    
+                    StatusBadge(
+                        icon: "globe.asia.australia",
+                        label: "代理IP",
+                        value: proxyManager.isRunning ? "Hidden" : "-",
+                        isActive: proxyManager.isRunning
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - 实时流量卡片
+    
+    private var realTimeTrafficCard: some View {
+        ModernCard(icon: "chart.line.uptrend.xyaxis", title: "实时流量", iconColor: .purple) {
+            VStack(alignment: .leading, spacing: 16) {
+                // 速度显示
+                HStack(spacing: 32) {
+                    SpeedDisplay(
+                        icon: "arrow.up",
+                        label: "上传速度",
+                        speed: proxyManager.isRunning ? proxyManager.uploadSpeedHistory.last?.value ?? 0 : 0,
+                        color: Theme.Colors.chartUpload
+                    )
+                    
+                    SpeedDisplay(
+                        icon: "arrow.down",
+                        label: "下载速度",
+                        speed: proxyManager.isRunning ? proxyManager.downloadSpeedHistory.last?.value ?? 0 : 0,
+                        color: Theme.Colors.chartDownload
+                    )
+                }
+                
+                // 流量滑块指示
+                VStack(spacing: 8) {
+                    TrafficSlider(
+                        icon: "arrow.up.circle",
+                        label: "上传",
+                        current: proxyManager.trafficStats.uploadBytes,
+                        color: Theme.Colors.chartUpload
+                    )
+                    
+                    TrafficSlider(
+                        icon: "arrow.down.circle",
+                        label: "下载",
+                        current: proxyManager.trafficStats.downloadBytes,
+                        color: Theme.Colors.chartDownload
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - 7天流量趋势
+    
+    private var weeklyTrafficCard: some View {
+        ModernCard(
+            icon: "chart.bar.fill",
+            title: "7 天流量趋势",
+            iconColor: .orange,
+            trailing: {
+                Button(action: {}) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        ) {
+            HStack(alignment: .bottom, spacing: 0) {
+                // 日均统计
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("日均")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Text("41.6 MB")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                }
+                .frame(width: 90, alignment: .leading)
+                
+                // 柱状图
+                WeeklyBarChart()
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    
+    // MARK: - 流量汇总卡片
+    
+    private var trafficSummaryCard: some View {
+        ModernCard(
+            icon: "clock.arrow.circlepath",
+            title: "流量汇总",
+            iconColor: .cyan,
+            trailing: {
+                Button(action: {}) {
+                    Image(systemName: "arrow.up.forward.square")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        ) {
+            HStack(spacing: 24) {
+                // 左侧：时间段选择 + 环形图
+                VStack(spacing: 16) {
+                    // 时间段选择器
+                    HStack(spacing: 0) {
+                        ForEach(TrafficPeriod.allCases, id: \.self) { period in
+                            Button(action: { selectedTrafficPeriod = period }) {
+                                Text(period.rawValue)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 6)
                                     .background(
-                                        proxyManager.proxyMode == mode
-                                            ? Color.blue.gradient
-                                            : Color.gray.opacity(0.1).gradient
+                                        selectedTrafficPeriod == period
+                                            ? Color.accentColor
+                                            : Color.clear
                                     )
-                                    .foregroundStyle(
-                                        proxyManager.proxyMode == mode ? .white : .primary
+                                    .foregroundColor(
+                                        selectedTrafficPeriod == period
+                                            ? .white
+                                            : .secondary
                                     )
-                                    .clipShape(Circle())
+                                    .cornerRadius(6)
                             }
                             .buttonStyle(.plain)
-                            .help(mode.rawValue)
                         }
                     }
-                }
-
-                Spacer(minLength: 0)
-
-                // System Proxy Toggle
-                VStack(alignment: .trailing, spacing: 10) {
-                    Label("系统代理", systemImage: "gearshape.2")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-
-                    Toggle(
-                        "",
-                        isOn: Binding(
-                            get: { proxyManager.isSystemProxyEnabled },
-                            set: { _ in proxyManager.toggleSystemProxy() }
+                    .padding(3)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
+                    
+                    HStack(spacing: 24) {
+                        // 环形进度图
+                        TrafficRingChart(
+                            upload: proxyManager.trafficStats.uploadBytes,
+                            download: proxyManager.trafficStats.downloadBytes
                         )
-                    )
-                    .toggleStyle(.switch)
-                    .disabled(!proxyManager.isRunning)
-                    .scaleEffect(0.7)
-                    .frame(height: 20)
-                }
-            }
-            .padding(16)
-        }
-    }
-
-    private var nodeInfoCard: some View {
-        GlassCard {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label("当前节点", systemImage: "server.rack")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-
-                    Text(proxyManager.selectedNode?.name ?? "未选择")
-                        .font(.system(size: 14, weight: .semibold))
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                if let latency = proxyManager.selectedNode?.latency {
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text("\(latency)")
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundStyle(latencyColor(latency))
-
-                        Text("ms")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    Image(systemName: "waveform.path.ecg")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.tertiary)
-                }
-            }
-            .padding(16)
-        }
-    }
-
-    // MARK: - Helper for Duration
-
-    private func formatDuration(_ interval: TimeInterval) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated
-        return formatter.string(from: interval) ?? ""
-    } /* Lines 101-787 omitted */
-
-    // MARK: - Proxy Control Card (Removed)
-
-    // MARK: - Network Latency Card (Removed)
-
-    // MARK: - Real-time Traffic Card
-
-    private var realTimeTrafficCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack {
-                    Label {
-                        Text("实时流量")
-                            .font(.system(size: 15, weight: .semibold))
-                    } icon: {
-                        Image(systemName: "waveform.path.ecg")
-                            .font(.system(size: 14))
-                            .foregroundStyle(.purple)
-                    }
-
-                    Spacer()
-
-                    if proxyManager.isRunning {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 6, height: 6)
-                                .opacity(
-                                    Double(Int(Date().timeIntervalSince1970) % 2 == 0 ? 1.0 : 0.5)
-                                )
-                                .animation(.easeInOut(duration: 1.0).repeatForever(), value: Date())
-                            Text("Realtime")
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                if proxyManager.isRunning && !proxyManager.uploadSpeedHistory.isEmpty {
-                    Chart {
-                        ForEach(Array(proxyManager.downloadSpeedHistory.enumerated()), id: \.offset)
-                        { _, point in
-                            AreaMark(
-                                x: .value("Time", point.timestamp),
-                                y: .value("Speed", point.value / 1024)
+                        .frame(width: 140, height: 140)
+                        
+                        // 流量统计
+                        VStack(alignment: .leading, spacing: 12) {
+                            TrafficStatRow(
+                                icon: "arrow.up.circle.fill",
+                                label: "上传",
+                                value: formatBytes(proxyManager.trafficStats.uploadBytes),
+                                color: Theme.Colors.chartUpload
                             )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.blue.opacity(0.3), Color.blue.opacity(0.01)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
+                            
+                            TrafficStatRow(
+                                icon: "arrow.down.circle.fill",
+                                label: "下载",
+                                value: formatBytes(proxyManager.trafficStats.downloadBytes),
+                                color: Theme.Colors.chartDownload
                             )
-                            .interpolationMethod(.monotone)
-
-                            LineMark(
-                                x: .value("Time", point.timestamp),
-                                y: .value("Speed", point.value / 1024)
-                            )
-                            .foregroundStyle(Color.blue)
-                            .lineStyle(StrokeStyle(lineWidth: 2))
-                            .interpolationMethod(.monotone)
-                        }
-
-                        ForEach(Array(proxyManager.uploadSpeedHistory.enumerated()), id: \.offset) {
-                            _, point in
-                            AreaMark(
-                                x: .value("Time", point.timestamp),
-                                y: .value("Speed", point.value / 1024)
-                            )
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.green.opacity(0.3), Color.green.opacity(0.01)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .interpolationMethod(.monotone)
-
-                            LineMark(
-                                x: .value("Time", point.timestamp),
-                                y: .value("Speed", point.value / 1024)
-                            )
-                            .foregroundStyle(Color.green)
-                            .lineStyle(StrokeStyle(lineWidth: 2))
-                            .interpolationMethod(.monotone)
-                        }
-                    }
-                    .chartXAxis(.hidden)
-                    .chartYAxis {
-                        AxisMarks(position: .trailing) { value in
-                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
-                                .foregroundStyle(Color.secondary.opacity(0.2))
-                        }
-                    }
-                    .chartLegend(position: .top, alignment: .leading) {
-                        HStack(spacing: 16) {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 8, height: 8)
-                                Text("上传")
-                                    .font(.system(size: 11))
-                                if let last = proxyManager.uploadSpeedHistory.last {
-                                    Text(formatSpeed(last.value))
-                                        .font(
-                                            .system(
-                                                size: 11, weight: .semibold, design: .monospaced))
+                            
+                            Divider()
+                            
+                            HStack(spacing: 16) {
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(Color.blue)
+                                        .frame(width: 6, height: 6)
+                                    Text("直接连接")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                    Text(formatBytes(0))
+                                        .font(.system(size: 11, weight: .medium))
                                 }
-                            }
-
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 8, height: 8)
-                                Text("下载")
-                                    .font(.system(size: 11))
-                                if let last = proxyManager.downloadSpeedHistory.last {
-                                    Text(formatSpeed(last.value))
-                                        .font(
-                                            .system(
-                                                size: 11, weight: .semibold, design: .monospaced))
+                                
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(Color.purple)
+                                        .frame(width: 6, height: 6)
+                                    Text("策略")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                    Text(formatBytes(proxyManager.trafficStats.uploadBytes + proxyManager.trafficStats.downloadBytes))
+                                        .font(.system(size: 11, weight: .medium))
                                 }
                             }
                         }
-                        .foregroundStyle(.secondary)
                     }
-                    .frame(height: 180)
-                } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "chart.xyaxis.line")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.tertiary)
-                            .symbolEffect(.pulse.byLayer, options: .repeating, isActive: true)
-                        Text("连接代理后显示实时流量")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 180)
                 }
-            }
-            .padding(20)
-        }
-    }
-
-    // MARK: - Traffic Stats Card
-
-    private var trafficStatsCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Label("流量统计", systemImage: "chart.bar.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Menu {
-                        ForEach(TrafficPeriod.allCases, id: \.self) { period in
-                            Button(period.rawValue) { selectedPeriod = period }
-                        }
-                    } label: {
-                        Text(selectedPeriod.rawValue)
-                            .font(.system(size: 12))
-                    }
-                    .menuStyle(.borderlessButton)
-                    .frame(width: 40)
-                }
-
-                Spacer()
-
-                VStack(spacing: 12) {
-                    StatRow(
-                        icon: "arrow.up.circle.fill",
-                        iconColor: .green,
-                        label: "上传",
-                        value: formatBytes(proxyManager.trafficStats.uploadBytes)
-                    )
-
-                    StatRow(
-                        icon: "arrow.down.circle.fill",
-                        iconColor: .blue,
-                        label: "下载",
-                        value: formatBytes(proxyManager.trafficStats.downloadBytes)
-                    )
-
-                    Divider()
-                        .padding(.vertical, 2)
-
-                    StatRow(
-                        icon: "arrow.up.arrow.down.circle.fill",
-                        iconColor: .purple,
-                        label: "总计",
-                        value: formatBytes(
-                            proxyManager.trafficStats.uploadBytes
-                                + proxyManager.trafficStats.downloadBytes
-                        )
-                    )
-                }
-
-                Spacer()
-            }
-            .padding(20)
-        }
-    }
-
-    // MARK: - Active Connections Card
-
-    private var activeConnectionsCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("活动连接", systemImage: "link.circle.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                VStack(spacing: 14) {
+                .frame(maxWidth: .infinity)
+                
+                Divider()
+                    .frame(height: 140)
+                
+                // 右侧：排行榜
+                VStack(alignment: .leading, spacing: 12) {
+                    // 排行榜标题和类型选择
                     HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("TCP 连接")
+                        HStack(spacing: 4) {
+                            Image(systemName: "list.number")
                                 .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                            Text(proxyManager.isRunning ? "23" : "-")
-                                .font(.system(size: 20, weight: .bold))
+                            Text("排行榜")
+                                .font(.system(size: 13, weight: .medium))
                         }
+                        .foregroundColor(.secondary)
+                        
                         Spacer()
-                        VStack(alignment: .trailing, spacing: 4) {
-                            Text("UDP 会话")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                            Text(proxyManager.isRunning ? "8" : "-")
-                                .font(.system(size: 20, weight: .bold))
+                        
+                        // 类型选择器
+                        HStack(spacing: 0) {
+                            ForEach(RankType.allCases, id: \.self) { type in
+                                Button(action: { selectedRankType = type }) {
+                                    Text(type.rawValue)
+                                        .font(.system(size: 11))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(
+                                            selectedRankType == type
+                                                ? Color.gray.opacity(0.2)
+                                                : Color.clear
+                                        )
+                                        .foregroundColor(
+                                            selectedRankType == type
+                                                ? .primary
+                                                : .secondary
+                                        )
+                                        .cornerRadius(4)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
-
-                    Divider()
-                        .padding(.vertical, 2)
-
-                    ConnectionRow(
-                        icon: "app.badge.fill",
-                        iconColor: .purple,
-                        label: "活跃进程",
-                        value: proxyManager.isRunning ? "8" : "-"
-                    )
-                }
-
-                Spacer()
-            }
-            .padding(20)
-        }
-    }
-
-    // MARK: - Top Applications Card
-
-    private var topApplicationsCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("热门应用", systemImage: "square.grid.2x2.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                if proxyManager.isRunning {
-                    VStack(spacing: 12) {
-                        AppTrafficRow(name: "Safari", traffic: "126 MB", percentage: 0.8)
-                        AppTrafficRow(name: "Chrome", traffic: "89 MB", percentage: 0.6)
-                        AppTrafficRow(name: "Telegram", traffic: "35 MB", percentage: 0.25)
+                    
+                    if proxyManager.isRunning {
+                        // 排行列表
+                        VStack(spacing: 8) {
+                            RankRow(rank: 1, name: "DIRECT", traffic: "12.5 MB")
+                            RankRow(rank: 2, name: "Proxy", traffic: "8.2 MB")
+                            RankRow(rank: 3, name: "Reject", traffic: "0 B")
+                        }
+                    } else {
+                        VStack {
+                            Spacer()
+                            Text("-")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                } else {
-                    VStack(spacing: 8) {
-                        Image(systemName: "app.dashed")
-                            .font(.system(size: 24))
-                            .foregroundStyle(.tertiary)
-                        Text("暂无数据")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity)
             }
-            .padding(20)
         }
     }
-
-    // MARK: - Helper Components
-
-    private func iconForMode(_ mode: ProxyMode) -> String {
-        switch mode {
-        case .direct: return "arrow.forward"
-        case .rule: return "list.bullet"
-        case .global: return "globe"
+    
+    // MARK: - Helpers
+    
+    private var formattedUptime: String {
+        guard let startTime = proxyManager.startTime else {
+            return "00:00"
         }
+        let interval = Date().timeIntervalSince(startTime)
+        let hours = Int(interval) / 3600
+        let minutes = (Int(interval) % 3600) / 60
+        return String(format: "%02d:%02d", hours, minutes)
     }
-
-    private func latencyColor(_ latency: Int) -> Color {
-        switch latency {
-        case 0..<50: return .green
-        case 50..<150: return .yellow
-        case 150..<300: return .orange
-        default: return .red
-        }
+    
+    private func getLocalIP() -> String {
+        // 简化显示
+        return "192.168.x.x"
     }
-
+    
+    private func formatBytes(_ bytes: Int64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .binary
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        return formatter.string(fromByteCount: bytes)
+    }
+    
     private func formatSpeed(_ bytes: Double) -> String {
         let kb = bytes / 1024
         if kb < 1024 {
@@ -549,7 +464,247 @@ struct OverviewView: View {
             return String(format: "%.2f MB/s", kb / 1024)
         }
     }
+}
 
+// MARK: - 现代卡片容器
+
+struct ModernCard<Content: View, Trailing: View>: View {
+    let icon: String
+    let title: String
+    let iconColor: Color
+    let trailing: () -> Trailing
+    let content: () -> Content
+    
+    init(
+        icon: String,
+        title: String,
+        iconColor: Color = .blue,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() },
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.icon = icon
+        self.title = title
+        self.iconColor = iconColor
+        self.trailing = trailing
+        self.content = content
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 标题栏
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(iconColor)
+                    
+                    Text(title)
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                
+                Spacer()
+                
+                trailing()
+            }
+            
+            content()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.regularMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - 状态指标组件
+
+struct StatusMetric: View {
+    let icon: String
+    let label: String
+    let value: String
+    let valueColor: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            
+            Text(value)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundColor(valueColor)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct LatencyMetric: View {
+    let icon: String
+    let label: String
+    let latency: Int?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                if let latency = latency {
+                    Text("\(latency)")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(latencyColor(latency))
+                    Text("ms")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(latencyColor(latency).opacity(0.7))
+                } else {
+                    Text("-")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private func latencyColor(_ latency: Int) -> Color {
+        switch latency {
+        case 0..<100: return Theme.Colors.statusActive
+        case 100..<300: return Theme.Colors.statusWarning
+        default: return Theme.Colors.statusError
+        }
+    }
+}
+
+struct StatusBadge: View {
+    let icon: String
+    let label: String
+    let value: String
+    let isActive: Bool
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .foregroundColor(isActive ? Theme.Colors.statusActive : .secondary)
+            
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+            
+            Text(value)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.primary)
+        }
+    }
+}
+
+// MARK: - 速度显示组件
+
+struct SpeedDisplay: View {
+    let icon: String
+    let label: String
+    let speed: Double
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                Text(label)
+                    .font(.system(size: 11))
+            }
+            .foregroundColor(.secondary)
+            
+            Text(formatSpeed(speed))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(color)
+        }
+    }
+    
+    private func formatSpeed(_ bytes: Double) -> String {
+        let kb = bytes / 1024
+        if kb < 1 {
+            return "0.0 KB/s"
+        } else if kb < 1024 {
+            return String(format: "%.1f KB/s", kb)
+        } else {
+            return String(format: "%.2f MB/s", kb / 1024)
+        }
+    }
+}
+
+// MARK: - 流量滑块
+
+struct TrafficSlider: View {
+    let icon: String
+    let label: String
+    let current: Int64
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 11))
+                    .foregroundColor(color)
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .frame(width: 50, alignment: .leading)
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // 背景轨道
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.2))
+                    
+                    // 进度条
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.8), color],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: min(CGFloat(current) / 1024 / 1024 * 10, geometry.size.width))
+                    
+                    // 滑块指示器
+                    Circle()
+                        .fill(color)
+                        .frame(width: 12, height: 12)
+                        .shadow(color: color.opacity(0.5), radius: 4, x: 0, y: 2)
+                        .offset(x: min(CGFloat(current) / 1024 / 1024 * 10, geometry.size.width - 12))
+                }
+            }
+            .frame(height: 8)
+            
+            Text(formatBytes(current))
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundColor(.secondary)
+                .frame(width: 60, alignment: .trailing)
+        }
+    }
+    
     private func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .binary
@@ -558,7 +713,142 @@ struct OverviewView: View {
     }
 }
 
-// MARK: - Glass Card
+// MARK: - 7天柱状图
+
+struct WeeklyBarChart: View {
+    let data: [Double] = [25, 38, 42, 55, 48, 35, 45]
+    let days = ["周四", "周三", "周二", "周一", "周日", "周六", "周五"]
+    
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            ForEach(Array(data.enumerated()), id: \.offset) { index, value in
+                VStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.gray.opacity(0.4), Color.gray.opacity(0.6)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 24, height: CGFloat(value) * 1.5)
+                    
+                    Text(days[index])
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 流量环形图
+
+struct TrafficRingChart: View {
+    let upload: Int64
+    let download: Int64
+    
+    var total: Int64 { upload + download }
+    
+    var body: some View {
+        ZStack {
+            // 外环
+            Circle()
+                .stroke(Color.gray.opacity(0.2), lineWidth: 12)
+            
+            // 渐变环
+            Circle()
+                .trim(from: 0, to: total > 0 ? 0.75 : 0)
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            Color.cyan,
+                            Color.blue,
+                            Color.purple,
+                            Color.pink,
+                            Color.cyan
+                        ],
+                        center: .center
+                    ),
+                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 1), value: total)
+            
+            // 中心文本
+            VStack(spacing: 2) {
+                Text("总计")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text(formatBytes(total))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+            }
+        }
+    }
+    
+    private func formatBytes(_ bytes: Int64) -> String {
+        if bytes == 0 { return "0 KB" }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .binary
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
+// MARK: - 流量统计行
+
+struct TrafficStatRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(color)
+            
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.system(size: 13, weight: .semibold))
+        }
+    }
+}
+
+// MARK: - 排行行
+
+struct RankRow: View {
+    let rank: Int
+    let name: String
+    let traffic: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("\(rank)")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.secondary)
+                .frame(width: 16)
+            
+            Text(name)
+                .font(.system(size: 12))
+                .lineLimit(1)
+            
+            Spacer()
+            
+            Text(traffic)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - GlassCard (保留兼容)
 
 struct GlassCard<Content: View>: View {
     let content: Content
@@ -570,128 +860,18 @@ struct GlassCard<Content: View>: View {
     var body: some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(.regularMaterial)
             )
-            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 4)
-    }
-}
-
-// MARK: - Supporting Views
-
-struct LatencyRow: View {
-    let label: String
-    let value: Int
-    let icon: String
-
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-
-            Text(label)
-                .font(.system(size: 13))
-                .foregroundStyle(.primary)
-
-            Spacer()
-
-            Text("\(value)ms")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(value < 50 ? .green : value < 150 ? .orange : .red)
-        }
-    }
-}
-
-struct StatRow: View {
-    let icon: String
-    let iconColor: Color
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(iconColor)
-                .frame(width: 20)
-
-            Text(label)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Text(value)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-    }
-}
-
-struct ConnectionRow: View {
-    let icon: String
-    let iconColor: Color
-    let label: String
-    let value: String
-
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundStyle(iconColor)
-                .frame(width: 20)
-
-            Text(label)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Text(value)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.primary)
-        }
-    }
-}
-
-struct AppTrafficRow: View {
-    let name: String
-    let traffic: String
-    let percentage: Double
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(name)
-                    .font(.system(size: 13, weight: .medium))
-
-                Spacer()
-
-                Text(traffic)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-            }
-
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: 4)
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.accentColor.gradient)
-                        .frame(width: geometry.size.width * percentage, height: 4)
-                }
-            }
-            .frame(height: 4)
-        }
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+            )
     }
 }
 
 #Preview {
     OverviewView()
         .environmentObject(ProxyManager.shared)
-        .frame(width: 1000, height: 800)
+        .frame(width: 900, height: 700)
 }
