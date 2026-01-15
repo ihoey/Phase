@@ -24,25 +24,26 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 // 第一行：运行状态 + 网络状态
-                HStack(spacing: 20) {
+                HStack(spacing: 16) {
                     runningStatusCard
                     networkStatusCard
                 }
-                .frame(height: 180)
+                .frame(height: 220)
 
                 // 第二行：实时流量 + 7天流量趋势
-                HStack(spacing: 20) {
+                HStack(spacing: 16) {
                     realTimeTrafficCard
                     weeklyTrafficCard
                 }
-                .frame(height: 200)
+                .frame(height: 220)
 
                 // 第三行：流量汇总
                 trafficSummaryCard
+                    .frame(height: 220)
             }
-            .padding(24)
+            .padding(20)
         }
         .background(Color(nsColor: .windowBackgroundColor))
     }
