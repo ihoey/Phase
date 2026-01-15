@@ -97,11 +97,11 @@ struct DetailView: View {
             case .nodes:
                 NodesView()
             case .rules:
-                PlaceholderView(title: "规则", icon: "list.bullet.rectangle")
+                RulesView()
             case .logs:
-                PlaceholderView(title: "日志", icon: "doc.text")
+                LogsView()
             case .settings:
-                PlaceholderView(title: "设置", icon: "gearshape")
+                SettingsView()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

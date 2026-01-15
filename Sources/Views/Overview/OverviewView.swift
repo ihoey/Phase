@@ -64,6 +64,25 @@ struct OverviewView: View {
                 
                 Divider()
                 
+                // 系统代理状态
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "network")
+                            .font(.system(size: 14))
+                        Text("系统代理")
+                            .font(Theme.Typography.callout)
+                    }
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    
+                    Spacer()
+                    
+                    Text(proxyManager.isSystemProxyEnabled ? "已启用" : "未启用")
+                        .font(Theme.Typography.callout)
+                        .foregroundColor(proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : Theme.Colors.tertiaryText)
+                }
+                
+                Divider()
+                
                 // 开关按钮
                 Button(action: {
                     withAnimation(Theme.Animation.standard) {

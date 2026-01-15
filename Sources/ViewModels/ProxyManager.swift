@@ -11,9 +11,11 @@ class ProxyManager: ObservableObject {
     @Published var selectedNode: ProxyNode?
     @Published var nodes: [ProxyNode] = []
     @Published var trafficStats: TrafficStats = TrafficStats(uploadBytes: 0, downloadBytes: 0)
+    @Published var isSystemProxyEnabled: Bool = false
     
     private let configManager = ConfigManager()
     private let singBoxService = SingBoxService.shared
+    private let systemProxyManager = SystemProxyManager.shared
     private var trafficTimer: Timer?
     
     private init() {
@@ -78,6 +80,15 @@ class ProxyManager: ObservableObject {
         do {
             try singBoxService.start(config: config)
             
+            // 启用系统代理
+            do {
+                try systemProxyManager.enableProxy()
+                isSystemProxyEnabled = true
+            } catch {
+                print("⚠️ 启用系统代理失败: \(error.localizedDescription)")
+                // 系统代理失败不影响 sing-box 运行
+            }
+            
             // 启动流量统计
             startTrafficMonitoring()
         } catch {
@@ -88,6 +99,14 @@ class ProxyManager: ObservableObject {
     
     private func stopProxy() {
         print("⏹️ Stopping proxy")
+        
+        // 禁用系统代理
+        do {
+            try systemProxyManager.disableProxy()
+            isSystemProxyEnabled = false
+        } catch {
+            print("⚠️ 禁用系统代理失败: \(error.localizedDescription)")
+        }
         
         // 停止 sing-box
         singBoxService.stop()
