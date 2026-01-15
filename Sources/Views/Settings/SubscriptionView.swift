@@ -96,7 +96,13 @@ struct SubscriptionView: View {
 
     private var subscriptionList: some View {
         ScrollView {
-            LazyVStack(spacing: Theme.Spacing.lg) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: Theme.Spacing.lg),
+                    GridItem(.flexible(), spacing: Theme.Spacing.lg)
+                ],
+                spacing: Theme.Spacing.lg
+            ) {
                 ForEach(subscriptions) { subscription in
                     SubscriptionCard(
                         subscription: subscription,

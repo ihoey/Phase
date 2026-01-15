@@ -91,6 +91,33 @@ class ProxyManager: ObservableObject {
         }
     }
 
+    /// 测试特定订阅的节点延迟
+    func testSubscriptionNodesLatency(_ subscriptionId: UUID) async {
+        guard let nodeList = subscriptionNodes[subscriptionId] else { return }
+        
+        await withTaskGroup(of: (UUID, Int).self) { group in
+            for node in nodeList {
+                group.addTask {
+                    let latency = await self.testNodeLatency(node)
+                    return (node.id, latency)
+                }
+            }
+
+            for await (nodeId, latency) in group {
+                // 更新订阅节点列表中的延迟
+                if var nodes = subscriptionNodes[subscriptionId],
+                   let index = nodes.firstIndex(where: { $0.id == nodeId }) {
+                    nodes[index].latency = latency
+                    subscriptionNodes[subscriptionId] = nodes
+                }
+                // 同时更新总节点列表
+                if let index = nodes.firstIndex(where: { $0.id == nodeId }) {
+                    nodes[index].latency = latency
+                }
+            }
+        }
+    }
+
     // MARK: - Private Methods
 
     private func startProxy() {
