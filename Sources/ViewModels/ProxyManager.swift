@@ -13,6 +13,7 @@ class ProxyManager: ObservableObject {
     @Published var trafficStats: TrafficStats = TrafficStats(uploadBytes: 0, downloadBytes: 0)
     @Published var isSystemProxyEnabled: Bool = false
     @Published var subscriptionNodes: [UUID: [ProxyNode]] = [:] // 订阅ID -> 节点列表
+    @Published var proxyMode: ProxyMode = .rule // 代理模式
     
     private let configManager = ConfigManager()
     private let singBoxService = SingBoxService.shared
@@ -24,6 +25,20 @@ class ProxyManager: ObservableObject {
         setupMockData()
     }
     
+    
+    /// 切换代理模式
+    func switchMode(_ mode: ProxyMode) {
+        guard proxyMode != mode else { return }
+        
+        proxyMode = mode
+        saveConfig()
+        
+        // 如果代理正在运行，重启以应用新模式
+        if isRunning {
+            stopProxy()
+            startProxy()
+        }
+    }
     // MARK: - Public Methods
     
     func toggleProxy() {
@@ -72,23 +87,14 @@ class ProxyManager: ObservableObject {
     // MARK: - Private Methods
     
     private func startProxy() {
-        print("🚀 Starting proxy with node: \(selectedNode?.name ?? "None")")
+        print("🚀 Starting proxy with node: \(selectedNode?.name ?? "None"), mode: \(proxyMode.rawValue)")
         
-        // 生成 sing-box 配置
-        let config = SingBoxConfig.createDefault(node: selectedNode)
+        // 根据代理模式和节点生成配置
+        let config = SingBoxConfig.createDefault(node: selectedNode, mode: proxyMode)
         
         // 启动 sing-box
         do {
             try singBoxService.start(config: config)
-            
-            // 启用系统代理
-            do {
-                try systemProxyManager.enableProxy()
-                isSystemProxyEnabled = true
-            } catch {
-                print("⚠️ 启用系统代理失败: \(error.localizedDescription)")
-                // 系统代理失败不影响 sing-box 运行
-            }
             
             // 启动流量统计
             startTrafficMonitoring()
@@ -101,19 +107,51 @@ class ProxyManager: ObservableObject {
     private func stopProxy() {
         print("⏹️ Stopping proxy")
         
-        // 禁用系统代理
-        do {
-            try systemProxyManager.disableProxy()
-            isSystemProxyEnabled = false
-        } catch {
-            print("⚠️ 禁用系统代理失败: \(error.localizedDescription)")
-        }
-        
         // 停止 sing-box
         singBoxService.stop()
         
         // 停止流量统计
         stopTrafficMonitoring()
+    }
+    
+    /// 启用系统代理
+    func enableSystemProxy() {
+        guard isRunning else {
+            print("⚠️ 代理未运行，无法启用系统代理")
+            return
+        }
+        
+        print("🔧 尝试启用系统代理...")
+        do {
+            try systemProxyManager.enableProxy()
+            isSystemProxyEnabled = true
+            print("✅ 系统代理已启用")
+        } catch {
+            print("❌ 启用系统代理失败: \(error.localizedDescription)")
+            isSystemProxyEnabled = false
+        }
+    }
+    
+    /// 禁用系统代理
+    func disableSystemProxy() {
+        print("🔧 尝试禁用系统代理...")
+        do {
+            try systemProxyManager.disableProxy()
+            isSystemProxyEnabled = false
+            print("✅ 系统代理已禁用")
+        } catch {
+            print("❌ 禁用系统代理失败: \(error.localizedDescription)")
+            isSystemProxyEnabled = false
+        }
+    }
+    
+    /// 切换系统代理状态
+    func toggleSystemProxy() {
+        if isSystemProxyEnabled {
+            disableSystemProxy()
+        } else {
+            enableSystemProxy()
+        }
     }
     
     private func startTrafficMonitoring() {
@@ -134,18 +172,19 @@ class ProxyManager: ObservableObject {
     
     private func loadConfig() {
         if let config = configManager.loadConfig() {
-            self.nodes = config.nodes
-            if let selectedId = config.selectedNodeId {
-                self.selectedNode = config.nodes.first { $0.id == selectedId }
+            // 加载保存的配置
+            if let nodeId = config.selectedNodeId,
+               let node = nodes.first(where: { $0.id == nodeId }) {
+                selectedNode = node
             }
+            proxyMode = config.proxyMode ?? .rule
         }
     }
     
     private func saveConfig() {
         let config = ProxyConfig(
             selectedNodeId: selectedNode?.id,
-            isSystemProxyEnabled: isRunning,
-            nodes: nodes
+            proxyMode: proxyMode
         )
         configManager.saveConfig(config)
     }

@@ -10,9 +10,9 @@ struct OverviewView: View {
                 // 状态卡片
                 statusCard
                 
-                // 流量统计卡片
-                trafficCard
-                
+            // 代理模式卡片
+            modeCard
+            
                 // 当前节点卡片
                 currentNodeCard
             }
@@ -76,9 +76,25 @@ struct OverviewView: View {
                     
                     Spacer()
                     
-                    Text(proxyManager.isSystemProxyEnabled ? "已启用" : "未启用")
-                        .font(Theme.Typography.callout)
-                        .foregroundColor(proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : Theme.Colors.tertiaryText)
+                    HStack(spacing: 8) {
+                        Text(proxyManager.isSystemProxyEnabled ? "已启用" : "未启用")
+                            .font(Theme.Typography.callout)
+                            .foregroundColor(proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : Theme.Colors.tertiaryText)
+                        
+                        // 系统代理开关按钮
+                        Button(action: {
+                            withAnimation(Theme.Animation.standard) {
+                                proxyManager.toggleSystemProxy()
+                            }
+                        }) {
+                            Image(systemName: proxyManager.isSystemProxyEnabled ? "toggle.on" : "toggle.off")
+                                .font(.system(size: 16))
+                                .foregroundColor(proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : Theme.Colors.tertiaryText)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!proxyManager.isRunning)
+                        .opacity(proxyManager.isRunning ? 1.0 : 0.5)
+                    }
                 }
                 
                 Divider()
@@ -171,6 +187,40 @@ struct OverviewView: View {
         }
     }
     
+    // MARK: - Mode Card
+    
+    private var modeCard: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                HStack {
+                    Image(systemName: "switch.2")
+                        .font(.system(size: 20))
+                        .foregroundColor(Theme.Colors.accent)
+                    
+                    Text("代理模式")
+                        .font(Theme.Typography.title3)
+                        .foregroundColor(Theme.Colors.primaryText)
+                    
+                    Spacer()
+                }
+                
+                Divider()
+                
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(ProxyMode.allCases, id: \.self) { mode in
+                        ModeButton(
+                            mode: mode,
+                            isSelected: proxyManager.proxyMode == mode,
+                            action: {
+                                proxyManager.switchMode(mode)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
     // MARK: - Current Node Card
     
     private var currentNodeCard: some View {
@@ -245,6 +295,36 @@ struct OverviewView: View {
         case 100..<300: return Theme.Colors.statusWarning
         default: return Theme.Colors.statusError
         }
+    }
+}
+
+// MARK: - Mode Button
+
+private struct ModeButton: View {
+    let mode: ProxyMode
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(isSelected ? Theme.Colors.accent : Theme.Colors.cardBackground)
+                        .frame(width: 48, height: 48)
+                    
+                    Image(systemName: mode.icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(isSelected ? .white : Theme.Colors.secondaryText)
+                }
+                
+                Text(mode.rawValue)
+                    .font(Theme.Typography.caption)
+                    .foregroundColor(isSelected ? Theme.Colors.accent : Theme.Colors.secondaryText)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 }
 

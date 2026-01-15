@@ -278,7 +278,7 @@ enum SingBoxError: Error, LocalizedError {
 
 extension SingBoxConfig {
     /// 创建默认配置
-    static func createDefault(node: ProxyNode? = nil) -> SingBoxConfig {
+    static func createDefault(node: ProxyNode? = nil, mode: ProxyMode = .rule) -> SingBoxConfig {
         // 入站：混合代理（HTTP + SOCKS5）
         let inbound = Inbound(
             type: "mixed",
@@ -299,8 +299,8 @@ extension SingBoxConfig {
                     tag: "proxy",
                     server: node.server,
                     serverPort: node.port,
-                    method: "aes-256-gcm",
-                    password: "password_placeholder"
+                    method: node.method ?? "aes-256-gcm",
+                    password: node.password ?? ""
                 ))
             default:
                 // TODO: 支持其他协议
@@ -327,6 +327,31 @@ extension SingBoxConfig {
             method: nil,
             password: nil
         ))
+        
+        // 根据代理模式确定默认出站
+        let finalOutbound: String
+        switch mode {
+        case .direct:
+            finalOutbound = "direct"
+        case .global:
+            finalOutbound = node != nil ? "proxy" : "direct"
+        case .rule:
+            finalOutbound = node != nil ? "proxy" : "direct"
+        }
+        
+        // 根据模式生成路由规则
+        var rules: [RouteConfig.Rule] = []
+        
+        if mode == .rule {
+            // 规则模式：私有 IP 直连
+            rules.append(RouteConfig.Rule(
+                geosite: nil,
+                geoip: nil,
+                ipCidr: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"],
+                outbound: "direct"
+            ))
+        }
+        // 直连模式和全局模式不需要规则，由 final 控制
         
         return SingBoxConfig(
             log: LogConfig(level: "info", timestamp: true),
@@ -355,15 +380,8 @@ extension SingBoxConfig {
             inbounds: [inbound],
             outbounds: outbounds,
             route: RouteConfig(
-                rules: [
-                    RouteConfig.Rule(
-                        geosite: nil,
-                        geoip: nil,
-                        ipCidr: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"],
-                        outbound: "direct"
-                    )
-                ],
-                final: node != nil ? "proxy" : "direct",
+                rules: rules,
+                final: finalOutbound,
                 autoDetectInterface: true,
                 defaultDomainResolver: "dns-direct"
             )

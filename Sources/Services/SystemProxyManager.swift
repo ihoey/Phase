@@ -60,62 +60,117 @@ class SystemProxyManager {
     }
     
     private func setSystemProxy(enabled: Bool) throws {
-        guard let primaryService = getPrimaryNetworkService() else {
-            throw SystemProxyError.networkServiceNotFound
+        // 使用 SCPreferences API 来持久化设置系统代理
+        guard let prefs = SCPreferencesCreate(nil, "Phase" as CFString, nil) else {
+            print("❌ SCPreferencesCreate 失败")
+            throw SystemProxyError.preferencesCreateFailed
         }
         
-        let proxySettings: [String: Any] = enabled ? [
-            kCFNetworkProxiesHTTPEnable as String: 1,
-            kCFNetworkProxiesHTTPProxy as String: proxyHost,
-            kCFNetworkProxiesHTTPPort as String: httpPort,
-            
-            kCFNetworkProxiesHTTPSEnable as String: 1,
-            kCFNetworkProxiesHTTPSProxy as String: proxyHost,
-            kCFNetworkProxiesHTTPSPort as String: httpPort,
-            
-            kCFNetworkProxiesSOCKSEnable as String: 1,
-            kCFNetworkProxiesSOCKSProxy as String: proxyHost,
-            kCFNetworkProxiesSOCKSPort as String: socksPort,
-            
-            // 排除本地地址
-            kCFNetworkProxiesExceptionsList as String: [
-                "localhost",
-                "127.0.0.1",
-                "*.local",
-                "192.168.0.0/16",
-                "10.0.0.0/8"
-            ]
-        ] : (enabled ? [:] : originalProxySettings)
-        
-        // 创建动态存储引用
-        guard let dynamicStore = SCDynamicStoreCreate(
-            nil,
-            "Phase" as CFString,
-            nil,
-            nil
-        ) else {
-            throw SystemProxyError.dynamicStoreCreateFailed
+        print("🔓 尝试锁定系统偏好设置...")
+        // 锁定偏好设置以进行修改
+        guard SCPreferencesLock(prefs, true) else {
+            let error = SCError()
+            let errorString = SCErrorString(error)
+            print("❌ SCPreferencesLock 失败 - 错误码: \(error)")
+            print("   错误描述: \(String(describing: errorString))")
+            print("   💡 提示: 需要管理员权限才能修改系统网络设置")
+            throw SystemProxyError.preferencesLockFailed
         }
         
-        // 设置代理
-        let key = "State:/Network/Global/Proxies" as CFString
-        let success = SCDynamicStoreSetValue(dynamicStore, key, proxySettings as CFDictionary)
+        print("✅ 成功锁定系统偏好设置")
         
-        guard success else {
-            throw SystemProxyError.setProxyFailed
+        defer {
+            SCPreferencesUnlock(prefs)
+        }
+        
+        // 获取网络服务集合
+        guard let networkSet = SCNetworkSetCopyCurrent(prefs) else {
+            throw SystemProxyError.networkSetNotFound
+        }
+        
+        // 获取所有网络服务
+        guard let services = SCNetworkSetCopyServices(networkSet) as? [SCNetworkService] else {
+            throw SystemProxyError.servicesNotFound
+        }
+        
+        // 遍历所有服务并设置代理
+        var successCount = 0
+        for service in services {
+            // 获取服务名称
+            guard let serviceName = SCNetworkServiceGetName(service) as String? else { continue }
+            
+            // 只处理活跃的网络服务（Wi-Fi, Ethernet 等）
+            if serviceName.contains("Wi-Fi") || 
+               serviceName.contains("Ethernet") || 
+               serviceName.contains("USB") ||
+               serviceName.contains("Thunderbolt") {
+                
+                // 获取代理设置
+                guard let proxyProtocol = SCNetworkServiceCopyProtocol(service, kSCNetworkProtocolTypeProxies) else {
+                    continue
+                }
+                
+                // 构建代理设置
+                var proxySettings: [String: Any] = [:]
+                
+                if enabled {
+                    // 启用代理
+                    proxySettings = [
+                        kCFNetworkProxiesHTTPEnable as String: 1,
+                        kCFNetworkProxiesHTTPProxy as String: proxyHost,
+                        kCFNetworkProxiesHTTPPort as String: httpPort,
+                        
+                        kCFNetworkProxiesHTTPSEnable as String: 1,
+                        kCFNetworkProxiesHTTPSProxy as String: proxyHost,
+                        kCFNetworkProxiesHTTPSPort as String: httpPort,
+                        
+                        kCFNetworkProxiesSOCKSEnable as String: 1,
+                        kCFNetworkProxiesSOCKSProxy as String: proxyHost,
+                        kCFNetworkProxiesSOCKSPort as String: socksPort,
+                        
+                        // 排除本地地址
+                        kCFNetworkProxiesExceptionsList as String: [
+                            "localhost",
+                            "127.0.0.1",
+                            "*.local",
+                            "192.168.0.0/16",
+                            "10.0.0.0/8"
+                        ]
+                    ]
+                } else {
+                    // 禁用代理
+                    proxySettings = [
+                        kCFNetworkProxiesHTTPEnable as String: 0,
+                        kCFNetworkProxiesHTTPSEnable as String: 0,
+                        kCFNetworkProxiesSOCKSEnable as String: 0
+                    ]
+                }
+                
+                // 设置代理
+                if SCNetworkProtocolSetConfiguration(proxyProtocol, proxySettings as CFDictionary) {
+                    print("✅ 已为 \(serviceName) 设置代理")
+                    successCount += 1
+                } else {
+                    print("⚠️ 为 \(serviceName) 设置代理失败")
+                }
+            }
+        }
+        
+        guard successCount > 0 else {
+            throw SystemProxyError.noActiveServiceFound
+        }
+        
+        // 提交更改
+        guard SCPreferencesCommitChanges(prefs) else {
+            throw SystemProxyError.commitChangesFailed
         }
         
         // 应用更改
-        applyProxyChanges(to: primaryService, settings: proxySettings)
-    }
-    
-    private func applyProxyChanges(to serviceID: String, settings: [String: Any]) {
-        // 使用 networksetup 命令需要管理员权限
-        // 这里仅作为备选方案，实际使用 SystemConfiguration API
-        print("⚠️ 系统代理设置可能需要管理员权限")
+        guard SCPreferencesApplyChanges(prefs) else {
+            throw SystemProxyError.applyChangesFailed
+        }
         
-        // 可选：使用 AppleScript 或 networksetup 命令
-        // 需要用户授权
+        print("✅ 成功为 \(successCount) 个网络服务设置代理")
     }
     
     private func getPrimaryNetworkService() -> String? {
@@ -239,6 +294,13 @@ enum SystemProxyError: Error, LocalizedError {
     case setProxyFailed
     case networkSetupFailed(String)
     case authorizationRequired
+    case preferencesCreateFailed
+    case preferencesLockFailed
+    case networkSetNotFound
+    case servicesNotFound
+    case noActiveServiceFound
+    case commitChangesFailed
+    case applyChangesFailed
     
     var errorDescription: String? {
         switch self {
@@ -252,6 +314,20 @@ enum SystemProxyError: Error, LocalizedError {
             return "networksetup 命令失败: \(output)"
         case .authorizationRequired:
             return "需要管理员权限"
+        case .preferencesCreateFailed:
+            return "创建系统偏好设置失败"
+        case .preferencesLockFailed:
+            return "锁定系统偏好设置失败（可能需要管理员权限）"
+        case .networkSetNotFound:
+            return "未找到网络配置集"
+        case .servicesNotFound:
+            return "未找到网络服务"
+        case .noActiveServiceFound:
+            return "未找到活跃的网络服务"
+        case .commitChangesFailed:
+            return "提交配置更改失败"
+        case .applyChangesFailed:
+            return "应用配置更改失败"
         }
     }
 }

@@ -134,7 +134,31 @@ class SubscriptionService {
         // 检查是否是 SIP002 格式（包含明文的 @server:port）
         if let atIndex = mainContent.firstIndex(of: "@") {
             // SIP002 格式: base64(method:password)@server:port
+            let authPart = String(mainContent[..<atIndex])
             let serverPart = String(mainContent[mainContent.index(after: atIndex)...])
+            
+            // 解析 Base64 编码的认证信息
+            let normalizedBase64 = authPart
+                .replacingOccurrences(of: "-", with: "+")
+                .replacingOccurrences(of: "_", with: "/")
+            let paddingLength = (4 - normalizedBase64.count % 4) % 4
+            let paddedBase64 = normalizedBase64 + String(repeating: "=", count: paddingLength)
+            
+            guard let decoded = Data(base64Encoded: paddedBase64),
+                  let decodedString = String(data: decoded, encoding: .utf8) else {
+                print("⚠️ Shadowsocks SIP002 Base64 解码失败: \(authPart)")
+                return nil
+            }
+            
+            // 解析 method:password
+            let authParts = decodedString.components(separatedBy: ":")
+            guard authParts.count == 2 else {
+                print("⚠️ Shadowsocks SIP002 认证格式无效: \(decodedString)")
+                return nil
+            }
+            
+            let method = authParts[0]
+            let password = authParts[1]
             
             // 解析服务器和端口
             let serverParts = serverPart.components(separatedBy: ":")
@@ -148,7 +172,9 @@ class SubscriptionService {
                 name: name,
                 type: .shadowsocks,
                 server: serverParts[0],
-                port: port
+                port: port,
+                method: method,
+                password: password
             )
         } else {
             // 旧格式: 整体 Base64 编码
@@ -173,6 +199,16 @@ class SubscriptionService {
                 return nil
             }
             
+            // 解析 method:password
+            let authParts = parts[0].components(separatedBy: ":")
+            guard authParts.count == 2 else {
+                print("⚠️ Shadowsocks 认证格式无效: \(parts[0])")
+                return nil
+            }
+            
+            let method = authParts[0]
+            let password = authParts[1]
+            
             let serverParts = parts[1].components(separatedBy: ":")
             guard serverParts.count == 2,
                   let port = Int(serverParts[1]) else {
@@ -184,7 +220,9 @@ class SubscriptionService {
                 name: name,
                 type: .shadowsocks,
                 server: serverParts[0],
-                port: port
+                port: port,
+                method: method,
+                password: password
             )
         }
     }
