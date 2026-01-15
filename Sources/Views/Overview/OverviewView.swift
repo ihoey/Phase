@@ -230,43 +230,60 @@ struct OverviewView: View {
 
     private var realTimeTrafficCard: some View {
         ModernCard(icon: "chart.line.uptrend.xyaxis", title: "实时流量", iconColor: .purple) {
-            VStack(alignment: .leading, spacing: 10) {
-                // 速度显示 - 带动画
-                HStack(spacing: 0) {
-                    // 上传速度区域
-                    SpeedMetricView(
-                        icon: "arrow.up.circle.fill",
-                        label: "上传",
-                        speed: proxyManager.isRunning
-                            ? proxyManager.uploadSpeedHistory.last?.value ?? 0 : 0,
-                        peakSpeed: proxyManager.uploadSpeedHistory.map { $0.value }.max() ?? 0,
-                        color: Theme.Colors.chartUpload
-                    )
+            VStack(spacing: 0) {
+                // 左右分栏：上传 | 下载
+                HStack(spacing: 12) {
+                    // 左侧：上传
+                    VStack(alignment: .leading, spacing: 8) {
+                        // 速度显示
+                        SpeedMetricView(
+                            icon: "arrow.up.circle.fill",
+                            label: "上传",
+                            speed: proxyManager.isRunning
+                                ? proxyManager.uploadSpeedHistory.last?.value ?? 0 : 0,
+                            peakSpeed: proxyManager.uploadSpeedHistory.map { $0.value }.max() ?? 0,
+                            color: Theme.Colors.chartUpload
+                        )
+
+                        // 上传折线图
+                        SingleSpeedChart(
+                            history: proxyManager.uploadSpeedHistory,
+                            color: Theme.Colors.chartUpload,
+                            isRunning: proxyManager.isRunning
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                    }
 
                     Divider()
-                        .frame(height: 40)
-                        .padding(.horizontal, 16)
 
-                    // 下载速度区域
-                    SpeedMetricView(
-                        icon: "arrow.down.circle.fill",
-                        label: "下载",
-                        speed: proxyManager.isRunning
-                            ? proxyManager.downloadSpeedHistory.last?.value ?? 0 : 0,
-                        peakSpeed: proxyManager.downloadSpeedHistory.map { $0.value }.max() ?? 0,
-                        color: Theme.Colors.chartDownload
-                    )
+                    // 右侧：下载
+                    VStack(alignment: .leading, spacing: 8) {
+                        // 速度显示
+                        SpeedMetricView(
+                            icon: "arrow.down.circle.fill",
+                            label: "下载",
+                            speed: proxyManager.isRunning
+                                ? proxyManager.downloadSpeedHistory.last?.value ?? 0 : 0,
+                            peakSpeed: proxyManager.downloadSpeedHistory.map { $0.value }.max()
+                                ?? 0,
+                            color: Theme.Colors.chartDownload
+                        )
+
+                        // 下载折线图
+                        SingleSpeedChart(
+                            history: proxyManager.downloadSpeedHistory,
+                            color: Theme.Colors.chartDownload,
+                            isRunning: proxyManager.isRunning
+                        )
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                    }
                 }
 
-                // 实时折线图 - 带发光效果
-                EnhancedSpeedChart(
-                    uploadHistory: proxyManager.uploadSpeedHistory,
-                    downloadHistory: proxyManager.downloadSpeedHistory,
-                    isRunning: proxyManager.isRunning
-                )
-                .frame(height: 60)
+                Spacer(minLength: 8)
 
-                // 简洁的累计流量显示
+                // 底部：累计流量
                 HStack(spacing: 16) {
                     TrafficBadge(
                         icon: "arrow.up",
@@ -647,76 +664,6 @@ struct ModernCard<Content: View, Trailing: View>: View {
     }
 }
 
-// MARK: - 状态指标组件
-
-struct StatusMetric: View {
-    let icon: String
-    let label: String
-    let value: String
-    let valueColor: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                Text(label)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
-
-            Text(value)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundColor(valueColor)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-struct LatencyMetric: View {
-    let icon: String
-    let label: String
-    let latency: Int?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-                Text(label)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
-
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                if let latency = latency {
-                    Text("\(latency)")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(latencyColor(latency))
-                    Text("ms")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(latencyColor(latency).opacity(0.7))
-                } else {
-                    Text("-")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func latencyColor(_ latency: Int) -> Color {
-        switch latency {
-        case 0..<100: return Theme.Colors.statusActive
-        case 100..<300: return Theme.Colors.statusWarning
-        default: return Theme.Colors.statusError
-        }
-    }
-}
-
 // MARK: - 增强延迟指标（带信号强度和心跳动画）
 
 struct EnhancedLatencyMetric: View {
@@ -964,29 +911,6 @@ struct NetworkInfoPill: View {
                     lineWidth: 1
                 )
         )
-    }
-}
-
-struct StatusBadge: View {
-    let icon: String
-    let label: String
-    let value: String
-    let isActive: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 10))
-                .foregroundColor(isActive ? Theme.Colors.statusActive : .secondary)
-
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-
-            Text(value)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.primary)
-        }
     }
 }
 
@@ -1252,105 +1176,6 @@ struct PillBadge: View {
     }
 }
 
-// MARK: - 速度显示组件
-
-struct SpeedDisplay: View {
-    let icon: String
-    let label: String
-    let speed: Double
-    let color: Color
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 10))
-                Text(label)
-                    .font(.system(size: 11))
-            }
-            .foregroundColor(.secondary)
-
-            Text(formatSpeed(speed))
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundColor(color)
-        }
-    }
-
-    private func formatSpeed(_ bytes: Double) -> String {
-        let kb = bytes / 1024
-        if kb < 1 {
-            return "0.0 KB/s"
-        } else if kb < 1024 {
-            return String(format: "%.1f KB/s", kb)
-        } else {
-            return String(format: "%.2f MB/s", kb / 1024)
-        }
-    }
-}
-
-// MARK: - 流量滑块
-
-struct TrafficSlider: View {
-    let icon: String
-    let label: String
-    let current: Int64
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 11))
-                    .foregroundColor(color)
-                Text(label)
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-            }
-            .frame(width: 50, alignment: .leading)
-
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    // 背景轨道
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.2))
-
-                    // 进度条
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [color.opacity(0.8), color],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: min(CGFloat(current) / 1024 / 1024 * 10, geometry.size.width))
-
-                    // 滑块指示器
-                    Circle()
-                        .fill(color)
-                        .frame(width: 12, height: 12)
-                        .shadow(color: color.opacity(0.5), radius: 4, x: 0, y: 2)
-                        .offset(
-                            x: min(CGFloat(current) / 1024 / 1024 * 10, geometry.size.width - 12))
-                }
-            }
-            .frame(height: 8)
-
-            Text(formatBytes(current))
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundColor(.secondary)
-                .frame(width: 60, alignment: .trailing)
-        }
-    }
-
-    private func formatBytes(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .binary
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        return formatter.string(fromByteCount: bytes)
-    }
-}
-
 // MARK: - 高级 7 天柱状图
 
 struct PremiumWeeklyChart: View {
@@ -1526,59 +1351,6 @@ struct PremiumWeeklyChart: View {
     }
 }
 
-// MARK: - 流量环形图
-
-struct TrafficRingChart: View {
-    let upload: Int64
-    let download: Int64
-
-    var total: Int64 { upload + download }
-
-    var body: some View {
-        ZStack {
-            // 外环
-            Circle()
-                .stroke(Color.gray.opacity(0.2), lineWidth: 12)
-
-            // 渐变环
-            Circle()
-                .trim(from: 0, to: total > 0 ? 0.75 : 0)
-                .stroke(
-                    AngularGradient(
-                        colors: [
-                            Color.cyan,
-                            Color.blue,
-                            Color.purple,
-                            Color.pink,
-                            Color.cyan,
-                        ],
-                        center: .center
-                    ),
-                    style: StrokeStyle(lineWidth: 12, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 1), value: total)
-
-            // 中心文本
-            VStack(spacing: 2) {
-                Text("总计")
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
-                Text(formatBytes(total))
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-            }
-        }
-    }
-
-    private func formatBytes(_ bytes: Int64) -> String {
-        if bytes == 0 { return "0 KB" }
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .binary
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        return formatter.string(fromByteCount: bytes)
-    }
-}
-
 // MARK: - 速度指标视图
 
 struct SpeedMetricView: View {
@@ -1661,32 +1433,45 @@ struct SpeedMetricView: View {
     }
 }
 
-// MARK: - 增强速度折线图
+// MARK: - 单独速度折线图（用于拆分显示）
 
-struct EnhancedSpeedChart: View {
-    let uploadHistory: [TrafficDataPoint]
-    let downloadHistory: [TrafficDataPoint]
+struct SingleSpeedChart: View {
+    let history: [TrafficDataPoint]
+    let color: Color
     let isRunning: Bool
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 // 网格背景
-                ChartGridBackground(size: geometry.size)
+                Canvas { context, size in
+                    let horizontalLines = 2
+                    let verticalLines = 4
 
-                // 下载曲线
-                GlowingSpeedCurve(
-                    data: downloadHistory,
-                    size: geometry.size,
-                    color: Theme.Colors.chartDownload,
-                    showCurrentPoint: isRunning
-                )
+                    // 水平线
+                    for i in 0...horizontalLines {
+                        let y = size.height * CGFloat(i) / CGFloat(horizontalLines)
+                        var path = Path()
+                        path.move(to: CGPoint(x: 0, y: y))
+                        path.addLine(to: CGPoint(x: size.width, y: y))
+                        context.stroke(path, with: .color(.gray.opacity(0.15)), lineWidth: 0.5)
+                    }
 
-                // 上传曲线
-                GlowingSpeedCurve(
-                    data: uploadHistory,
+                    // 垂直线
+                    for i in 0...verticalLines {
+                        let x = size.width * CGFloat(i) / CGFloat(verticalLines)
+                        var path = Path()
+                        path.move(to: CGPoint(x: x, y: 0))
+                        path.addLine(to: CGPoint(x: x, y: size.height))
+                        context.stroke(path, with: .color(.gray.opacity(0.15)), lineWidth: 0.5)
+                    }
+                }
+
+                // 速度曲线
+                SingleGlowingCurve(
+                    data: history,
                     size: geometry.size,
-                    color: Theme.Colors.chartUpload,
+                    color: color,
                     showCurrentPoint: isRunning
                 )
             }
@@ -1694,46 +1479,13 @@ struct EnhancedSpeedChart: View {
     }
 }
 
-// MARK: - 图表网格背景
+// MARK: - 单独发光曲线
 
-struct ChartGridBackground: View {
-    let size: CGSize
-
-    var body: some View {
-        Canvas { context, size in
-            let horizontalLines = 3
-            let verticalLines = 6
-
-            // 水平线
-            for i in 0...horizontalLines {
-                let y = size.height * CGFloat(i) / CGFloat(horizontalLines)
-                var path = Path()
-                path.move(to: CGPoint(x: 0, y: y))
-                path.addLine(to: CGPoint(x: size.width, y: y))
-                context.stroke(path, with: .color(.gray.opacity(0.1)), lineWidth: 1)
-            }
-
-            // 垂直线
-            for i in 0...verticalLines {
-                let x = size.width * CGFloat(i) / CGFloat(verticalLines)
-                var path = Path()
-                path.move(to: CGPoint(x: x, y: 0))
-                path.addLine(to: CGPoint(x: x, y: size.height))
-                context.stroke(path, with: .color(.gray.opacity(0.1)), lineWidth: 1)
-            }
-        }
-    }
-}
-
-// MARK: - 发光速度曲线
-
-struct GlowingSpeedCurve: View {
+struct SingleGlowingCurve: View {
     let data: [TrafficDataPoint]
     let size: CGSize
     let color: Color
     var showCurrentPoint: Bool = true
-
-    @State private var isAnimating = false
 
     var body: some View {
         let points = normalizedPoints
@@ -1762,58 +1514,52 @@ struct GlowingSpeedCurve: View {
             }
             .fill(
                 LinearGradient(
-                    colors: [color.opacity(0.25), color.opacity(0.02)],
+                    colors: [color.opacity(0.3), color.opacity(0.02)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
             )
 
-            // 发光效果 - 模糊层
+            // 发光效果
             curvePath(points: points)
                 .stroke(
-                    color.opacity(0.5),
-                    style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
+                    color.opacity(0.4),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round)
                 )
-                .blur(radius: 4)
+                .blur(radius: 3)
 
             // 主曲线
             curvePath(points: points)
                 .stroke(
                     LinearGradient(
-                        colors: [color.opacity(0.8), color],
+                        colors: [color.opacity(0.7), color],
                         startPoint: .leading,
                         endPoint: .trailing
                     ),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
                 )
 
-            // 当前点高亮
+            // 当前点指示器
             if showCurrentPoint, let lastPoint = points.last {
-                ZStack {
-                    // 脉冲效果
-                    Circle()
-                        .fill(color.opacity(0.3))
-                        .frame(width: 16, height: 16)
-                        .scaleEffect(isAnimating ? 1.5 : 1)
-                        .opacity(isAnimating ? 0 : 0.5)
-
-                    // 外圈
-                    Circle()
-                        .fill(color.opacity(0.3))
-                        .frame(width: 10, height: 10)
-
-                    // 内圈
-                    Circle()
-                        .fill(color)
-                        .frame(width: 6, height: 6)
-                }
-                .position(lastPoint)
+                Circle()
+                    .fill(color)
+                    .frame(width: 6, height: 6)
+                    .shadow(color: color.opacity(0.6), radius: 4)
+                    .position(lastPoint)
             }
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false)) {
-                isAnimating = true
-            }
+    }
+
+    private var normalizedPoints: [CGPoint] {
+        guard !data.isEmpty else { return [] }
+        let maxValue = max(data.map { $0.value }.max() ?? 1, 1)
+        let pointCount = data.count
+
+        return data.enumerated().map { index, point in
+            CGPoint(
+                x: size.width * CGFloat(index) / CGFloat(max(pointCount - 1, 1)),
+                y: size.height * (1 - CGFloat(point.value / maxValue) * 0.85)
+            )
         }
     }
 
@@ -1833,31 +1579,6 @@ struct GlowingSpeedCurve: View {
                 )
                 path.addCurve(to: points[i], control1: control1, control2: control2)
             }
-        }
-    }
-
-    private var normalizedPoints: [CGPoint] {
-        guard !data.isEmpty else {
-            return generateStaticWave()
-        }
-
-        let maxValue = max(data.map { $0.value }.max() ?? 1, 1024)
-        let count = data.count
-
-        return data.enumerated().map { index, point in
-            let x = size.width * CGFloat(index) / CGFloat(max(count - 1, 1))
-            let y = size.height - (size.height * CGFloat(point.value) / CGFloat(maxValue)) * 0.85
-            return CGPoint(x: x, y: max(8, min(y, size.height - 8)))
-        }
-    }
-
-    private func generateStaticWave() -> [CGPoint] {
-        let pointCount = 20
-        return (0..<pointCount).map { i in
-            let x = size.width * CGFloat(i) / CGFloat(pointCount - 1)
-            let wave = sin(Double(i) * 0.5) * 0.3 + 0.5
-            let y = size.height * (1 - CGFloat(wave) * 0.2)
-            return CGPoint(x: x, y: y)
         }
     }
 }
@@ -1894,219 +1615,6 @@ struct TrafficBadge: View {
         formatter.countStyle = .binary
         formatter.allowedUnits = [.useKB, .useMB, .useGB]
         return formatter.string(fromByteCount: bytes)
-    }
-}
-
-// MARK: - 流量环形指示器（保留用于其他地方）
-
-struct TrafficRingIndicator: View {
-    let icon: String
-    let label: String
-    let bytes: Int64
-    let color: Color
-
-    // 假设最大值为 1GB 用于进度显示
-    private let maxBytes: Int64 = 1024 * 1024 * 1024
-
-    private var progress: Double {
-        min(Double(bytes) / Double(maxBytes), 1.0)
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // 环形进度
-            ZStack {
-                // 背景环
-                Circle()
-                    .stroke(color.opacity(0.15), lineWidth: 4)
-                    .frame(width: 36, height: 36)
-
-                // 进度环
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(
-                        LinearGradient(
-                            colors: [color.opacity(0.7), color],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 36, height: 36)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: progress)
-
-                // 图标
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(color)
-            }
-
-            // 文字信息
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.system(size: 10))
-                    .foregroundColor(.secondary)
-
-                Text(formatBytes(bytes))
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func formatBytes(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .binary
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        return formatter.string(fromByteCount: bytes)
-    }
-}
-
-// MARK: - 旧版组件保留用于兼容
-
-struct RealTimeSpeedChart: View {
-    let uploadHistory: [TrafficDataPoint]
-    let downloadHistory: [TrafficDataPoint]
-
-    var body: some View {
-        EnhancedSpeedChart(
-            uploadHistory: uploadHistory,
-            downloadHistory: downloadHistory,
-            isRunning: true
-        )
-    }
-}
-
-// MARK: - 流量比例进度条
-
-struct TrafficRatioBar: View {
-    let directBytes: Int64
-    let proxyBytes: Int64
-
-    var total: Int64 { directBytes + proxyBytes }
-    var directRatio: CGFloat { total > 0 ? CGFloat(directBytes) / CGFloat(total) : 0 }
-    var proxyRatio: CGFloat { total > 0 ? CGFloat(proxyBytes) / CGFloat(total) : 0 }
-
-    var body: some View {
-        VStack(spacing: 8) {
-            // 标签和数值
-            HStack(spacing: 16) {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.blue)
-                        .frame(width: 6, height: 6)
-                    Text("直接连接")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Text(formatBytes(directBytes))
-                        .font(.system(size: 11, weight: .medium))
-                }
-
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Color.purple)
-                        .frame(width: 6, height: 6)
-                    Text("策略")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Text(formatBytes(proxyBytes))
-                        .font(.system(size: 11, weight: .medium))
-                }
-            }
-
-            // 进度条
-            GeometryReader { geometry in
-                HStack(spacing: 2) {
-                    // 直接连接部分（蓝色）
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.blue.opacity(0.7), Color.blue],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(
-                            width: max(geometry.size.width * directRatio, directBytes > 0 ? 20 : 0))
-
-                    // 策略部分（紫色/粉色渐变）
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.purple, Color.pink],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(
-                            width: max(geometry.size.width * proxyRatio, proxyBytes > 0 ? 20 : 0))
-                }
-            }
-            .frame(height: 6)
-        }
-    }
-
-    private func formatBytes(_ bytes: Int64) -> String {
-        if bytes == 0 { return "0 KB" }
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .binary
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        return formatter.string(fromByteCount: bytes)
-    }
-}
-
-// MARK: - 流量统计行
-
-struct TrafficStatRow: View {
-    let icon: String
-    let label: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14))
-                .foregroundColor(color)
-
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-
-            Spacer()
-
-            Text(value)
-                .font(.system(size: 13, weight: .semibold))
-        }
-    }
-}
-
-// MARK: - 排行行
-
-struct RankRow: View {
-    let rank: Int
-    let name: String
-    let traffic: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Text("\(rank)")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
-                .frame(width: 16)
-
-            Text(name)
-                .font(.system(size: 12))
-                .lineLimit(1)
-
-            Spacer()
-
-            Text(traffic)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.secondary)
-        }
     }
 }
 
@@ -2387,28 +1895,6 @@ struct EnhancedRankRow: View {
         case 3: return Color(red: 0.8, green: 0.5, blue: 0.2)  // 铜色
         default: return .secondary
         }
-    }
-}
-
-// MARK: - GlassCard (保留兼容)
-
-struct GlassCard<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
     }
 }
 
