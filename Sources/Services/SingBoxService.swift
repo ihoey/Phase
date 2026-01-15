@@ -167,10 +167,30 @@ struct SingBoxConfig: Codable {
     
     struct DNSConfig: Codable {
         let servers: [DNSServer]
+        let rules: [DNSRule]?
+        let final: String?
         
         struct DNSServer: Codable {
-            let address: String
-            let tag: String?
+            let tag: String
+            let type: String?
+            let server: String?
+            let serverPort: Int?
+            let address: String?
+            let detour: String?
+            
+            enum CodingKeys: String, CodingKey {
+                case tag
+                case type
+                case server
+                case serverPort = "server_port"
+                case address
+                case detour
+            }
+        }
+        
+        struct DNSRule: Codable {
+            let geosite: [String]?
+            let server: String
         }
     }
     
@@ -206,17 +226,28 @@ struct SingBoxConfig: Codable {
     struct RouteConfig: Codable {
         let rules: [Rule]
         let final: String
+        let autoDetectInterface: Bool?
+        let defaultDomainResolver: String?
         
         struct Rule: Codable {
-            let domain: [String]?
+            let geosite: [String]?
+            let geoip: [String]?
             let ipCidr: [String]?
             let outbound: String
             
             enum CodingKeys: String, CodingKey {
-                case domain
+                case geosite
+                case geoip
                 case ipCidr = "ip_cidr"
                 case outbound
             }
+        }
+        
+        enum CodingKeys: String, CodingKey {
+            case rules
+            case final
+            case autoDetectInterface = "auto_detect_interface"
+            case defaultDomainResolver = "default_domain_resolver"
         }
     }
 }
@@ -299,26 +330,42 @@ extension SingBoxConfig {
         
         return SingBoxConfig(
             log: LogConfig(level: "info", timestamp: true),
-            dns: DNSConfig(servers: [
-                DNSConfig.DNSServer(address: "223.5.5.5", tag: "ali"),
-                DNSConfig.DNSServer(address: "8.8.8.8", tag: "google")
-            ]),
+            dns: DNSConfig(
+                servers: [
+                    DNSConfig.DNSServer(
+                        tag: "dns-direct",
+                        type: "https",
+                        server: "223.5.5.5",
+                        serverPort: 443,
+                        address: nil,
+                        detour: nil
+                    ),
+                    DNSConfig.DNSServer(
+                        tag: "dns-proxy",
+                        type: "https",
+                        server: "1.1.1.1",
+                        serverPort: 443,
+                        address: nil,
+                        detour: node != nil ? "proxy" : nil
+                    )
+                ],
+                rules: nil,
+                final: "dns-direct"
+            ),
             inbounds: [inbound],
             outbounds: outbounds,
             route: RouteConfig(
                 rules: [
                     RouteConfig.Rule(
-                        domain: ["geosite:cn"],
-                        ipCidr: nil,
-                        outbound: "direct"
-                    ),
-                    RouteConfig.Rule(
-                        domain: nil,
-                        ipCidr: ["geoip:cn", "geoip:private"],
+                        geosite: nil,
+                        geoip: nil,
+                        ipCidr: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"],
                         outbound: "direct"
                     )
                 ],
-                final: node != nil ? "proxy" : "direct"
+                final: node != nil ? "proxy" : "direct",
+                autoDetectInterface: true,
+                defaultDomainResolver: "dns-direct"
             )
         )
     }

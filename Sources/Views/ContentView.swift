@@ -4,6 +4,7 @@ import SwiftUI
 enum NavigationItem: String, CaseIterable, Identifiable {
     case overview = "总览"
     case nodes = "节点"
+    case subscriptions = "订阅"
     case rules = "规则"
     case logs = "日志"
     case settings = "设置"
@@ -14,6 +15,7 @@ enum NavigationItem: String, CaseIterable, Identifiable {
         switch self {
         case .overview: return "gauge.with.dots.needle.67percent"
         case .nodes: return "network"
+        case .subscriptions: return "link"
         case .rules: return "list.bullet.rectangle"
         case .logs: return "doc.text"
         case .settings: return "gearshape"
@@ -96,6 +98,8 @@ struct DetailView: View {
                 OverviewView()
             case .nodes:
                 NodesView()
+            case .subscriptions:
+                SubscriptionView()
             case .rules:
                 RulesView()
             case .logs:

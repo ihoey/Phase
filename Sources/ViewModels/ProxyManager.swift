@@ -12,6 +12,7 @@ class ProxyManager: ObservableObject {
     @Published var nodes: [ProxyNode] = []
     @Published var trafficStats: TrafficStats = TrafficStats(uploadBytes: 0, downloadBytes: 0)
     @Published var isSystemProxyEnabled: Bool = false
+    @Published var subscriptionNodes: [UUID: [ProxyNode]] = [:] // 订阅ID -> 节点列表
     
     private let configManager = ConfigManager()
     private let singBoxService = SingBoxService.shared
@@ -165,6 +166,40 @@ class ProxyManager: ObservableObject {
         ]
         
         selectedNode = nodes.first
+    }
+    
+    // MARK: - Subscription Management
+    
+    /// 添加订阅节点
+    func addSubscriptionNodes(_ subscriptionId: UUID, nodes: [ProxyNode]) {
+        subscriptionNodes[subscriptionId] = nodes
+        updateAllNodes()
+    }
+    
+    /// 移除订阅节点
+    func removeSubscriptionNodes(_ subscriptionId: UUID) {
+        subscriptionNodes.removeValue(forKey: subscriptionId)
+        updateAllNodes()
+    }
+    
+    /// 更新总节点列表
+    private func updateAllNodes() {
+        var allNodes: [ProxyNode] = []
+        
+        // 添加所有订阅的节点
+        for nodeList in subscriptionNodes.values {
+            allNodes.append(contentsOf: nodeList)
+        }
+        
+        // 如果没有订阅节点，使用模拟数据
+        if allNodes.isEmpty {
+            setupMockData()
+        } else {
+            nodes = allNodes
+            if selectedNode == nil || !nodes.contains(where: { $0.id == selectedNode?.id }) {
+                selectedNode = nodes.first
+            }
+        }
     }
 }
 
