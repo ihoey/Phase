@@ -13,10 +13,6 @@ class ProxyManager: ObservableObject {
     @Published var trafficStats: TrafficStats = TrafficStats(uploadBytes: 0, downloadBytes: 0)
     @Published var isSystemProxyEnabled: Bool = false
     
-    // 累计流量（避免显示 0 KB）
-    private var accumulatedUpload: Int64 = 1024 * 100  // 初始 100 KB
-    private var accumulatedDownload: Int64 = 1024 * 500  // 初始 500 KB
-    
     private let configManager = ConfigManager()
     private let singBoxService = SingBoxService.shared
     private let systemProxyManager = SystemProxyManager.shared
@@ -120,22 +116,12 @@ class ProxyManager: ObservableObject {
     }
     
     private func startTrafficMonitoring() {
-        // 初始化累计流量
-        trafficStats.uploadBytes = accumulatedUpload
-        trafficStats.downloadBytes = accumulatedDownload
-        
         trafficTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
                 // TODO: 从 sing-box 获取真实流量数据
-                let uploadDelta = Int64.random(in: 1000...50000)
-                let downloadDelta = Int64.random(in: 5000...200000)
-                
-                self.accumulatedUpload += uploadDelta
-                self.accumulatedDownload += downloadDelta
-                
-                self.trafficStats.uploadBytes = self.accumulatedUpload
-                self.trafficStats.downloadBytes = self.accumulatedDownload
+                self.trafficStats.uploadBytes += Int64.random(in: 1000...50000)
+                self.trafficStats.downloadBytes += Int64.random(in: 5000...200000)
             }
         }
     }
@@ -143,10 +129,6 @@ class ProxyManager: ObservableObject {
     private func stopTrafficMonitoring() {
         trafficTimer?.invalidate()
         trafficTimer = nil
-        
-        // 保存累计流量
-        accumulatedUpload = trafficStats.uploadBytes
-        accumulatedDownload = trafficStats.downloadBytes
     }
     
     private func loadConfig() {

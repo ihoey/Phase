@@ -36,11 +36,27 @@ struct TrafficStats: Codable {
     var downloadBytes: Int64
     
     var uploadFormatted: String {
-        ByteCountFormatter.string(fromByteCount: uploadBytes, countStyle: .binary)
+        formatBytes(uploadBytes)
     }
     
     var downloadFormatted: String {
-        ByteCountFormatter.string(fromByteCount: downloadBytes, countStyle: .binary)
+        formatBytes(downloadBytes)
+    }
+    
+    private func formatBytes(_ bytes: Int64) -> String {
+        let kb = Double(bytes) / 1024.0
+        let mb = kb / 1024.0
+        let gb = mb / 1024.0
+        
+        if gb >= 1.0 {
+            return String(format: "%.2f GB", gb)
+        } else if mb >= 1.0 {
+            return String(format: "%.2f MB", mb)
+        } else if kb >= 1.0 {
+            return String(format: "%.2f KB", kb)
+        } else {
+            return "0 KB"
+        }
     }
 }
 
