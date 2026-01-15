@@ -58,8 +58,7 @@ struct LogsView: View {
         HStack(spacing: Theme.Spacing.md) {
             // 日志级别过滤 - 使用 Picker 节省空间
             HStack(spacing: Theme.Spacing.sm) {
-                Text("级别")
-                    .font(Theme.Typography.callout)
+                Image(systemName: "line.3.horizontal.decrease.circle")
                     .foregroundColor(Theme.Colors.secondaryText)
 
                 Picker(
@@ -71,17 +70,23 @@ struct LogsView: View {
                         }
                     )
                 ) {
-                    Text("全部").tag("all")
+                    Label("全部", systemImage: "circle.grid.3x3.fill").tag("all")
                     ForEach(LogEntry.LogLevel.allCases, id: \.self) { level in
-                        HStack {
-                            Image(systemName: level.iconName)
+                        Label {
                             Text(level.displayName)
+                        } icon: {
+                            Image(systemName: level.iconName)
+                                .foregroundColor(levelColor(level))
                         }.tag(level.rawValue)
                     }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 120)
+                .frame(width: 130)
             }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+            .background(Theme.Colors.cardBackground)
+            .cornerRadius(Theme.CornerRadius.md)
 
             Spacer()
 
@@ -89,8 +94,9 @@ struct LogsView: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(Theme.Colors.tertiaryText)
+                    .imageScale(.medium)
 
-                TextField("搜索日志", text: $searchText)
+                TextField("搜索日志内容或来源...", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(Theme.Typography.body)
 
@@ -100,48 +106,77 @@ struct LogsView: View {
                             .foregroundColor(Theme.Colors.tertiaryText)
                     }
                     .buttonStyle(.plain)
+                    .help("清除搜索")
                 }
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.sm)
             .background(Theme.Colors.cardBackground)
             .cornerRadius(Theme.CornerRadius.md)
-            .frame(width: 250)
+            .frame(width: 280)
+
+            Divider()
+                .frame(height: 20)
 
             // 自动滚动开关
-            Toggle(isOn: $autoScroll) {
-                HStack(spacing: 4) {
+            Button(action: { autoScroll.toggle() }) {
+                HStack(spacing: 6) {
                     Image(systemName: autoScroll ? "arrow.down.circle.fill" : "arrow.down.circle")
-                        .font(.system(size: 14))
+                        .font(.system(size: 16))
                     Text("自动滚动")
                         .font(Theme.Typography.callout)
                 }
+                .foregroundColor(autoScroll ? Theme.Colors.accent : Theme.Colors.secondaryText)
             }
-            .toggleStyle(.button)
-            .tint(Theme.Colors.accent)
+            .buttonStyle(.plain)
+            .help(autoScroll ? "关闭自动滚动" : "开启自动滚动")
 
             // 暂停/继续
             Button(action: { isPaused.toggle() }) {
-                Image(systemName: isPaused ? "play.circle.fill" : "pause.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(isPaused ? Theme.Colors.statusActive : Theme.Colors.accent)
+                HStack(spacing: 6) {
+                    Image(systemName: isPaused ? "play.circle.fill" : "pause.circle.fill")
+                        .font(.system(size: 16))
+                    Text(isPaused ? "继续" : "暂停")
+                        .font(Theme.Typography.callout)
+                }
+                .foregroundColor(isPaused ? Theme.Colors.statusActive : Theme.Colors.accent)
             }
             .buttonStyle(.plain)
+            .help(isPaused ? "继续记录日志" : "暂停记录日志")
 
             // 清空日志
             Button(action: clearLogs) {
-                Image(systemName: "trash")
-                    .font(.system(size: 16))
-                    .foregroundColor(Theme.Colors.statusError)
+                HStack(spacing: 6) {
+                    Image(systemName: "trash.circle")
+                        .font(.system(size: 16))
+                    Text("清空")
+                        .font(Theme.Typography.callout)
+                }
+                .foregroundColor(Theme.Colors.statusError)
             }
             .buttonStyle(.plain)
+            .help("清空所有日志")
 
-            // 日志数量
-            Text("\(filteredLogs.count) 条")
-                .font(Theme.Typography.callout)
-                .foregroundColor(Theme.Colors.secondaryText)
+            Divider()
+                .frame(height: 20)
+
+            // 日志数量统计
+            HStack(spacing: 6) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 14))
+                Text("\(filteredLogs.count)")
+                    .font(Theme.Typography.monospacedDigit)
+                    .monospacedDigit()
+            }
+            .foregroundColor(Theme.Colors.secondaryText)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+            .background(Theme.Colors.cardBackground)
+            .cornerRadius(Theme.CornerRadius.md)
         }
-        .padding(Theme.Spacing.lg)
+        .padding(.horizontal, Theme.Spacing.lg)
+        .padding(.vertical, Theme.Spacing.md)
+        .background(Theme.Colors.background.opacity(0.95))
     }
 
     // MARK: - Logs List
@@ -149,44 +184,57 @@ struct LogsView: View {
     private var logsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 1) {
                     ForEach(filteredLogs) { log in
                         LogRow(log: log)
                             .id(log.id)
-
-                        Divider()
                     }
                 }
-                .padding(.horizontal, Theme.Spacing.lg)
             }
+            .background(Color(nsColor: .textBackgroundColor))
             .onChange(of: logs.count) { _, _ in
                 if autoScroll, let lastLog = filteredLogs.last {
-                    withAnimation {
+                    withAnimation(.easeOut(duration: 0.3)) {
                         proxy.scrollTo(lastLog.id, anchor: .bottom)
                     }
                 }
             }
         }
-        .background(Color(nsColor: .textBackgroundColor))
     }
 
     private var emptyView: some View {
-        VStack(spacing: Theme.Spacing.lg) {
-            Image(systemName: searchText.isEmpty ? "doc.text" : "magnifyingglass")
-                .font(.system(size: 48))
+        VStack(spacing: Theme.Spacing.xl) {
+            ZStack {
+                Circle()
+                    .fill(Theme.Colors.cardBackground)
+                    .frame(width: 100, height: 100)
+
+                Image(
+                    systemName: searchText.isEmpty ? "doc.text.magnifyingglass" : "magnifyingglass"
+                )
+                .font(.system(size: 44))
                 .foregroundColor(Theme.Colors.tertiaryText)
+            }
 
-            Text(searchText.isEmpty ? "暂无日志" : "未找到匹配日志")
-                .font(Theme.Typography.title3)
-                .foregroundColor(Theme.Colors.secondaryText)
+            VStack(spacing: Theme.Spacing.sm) {
+                Text(searchText.isEmpty ? "暂无日志记录" : "未找到匹配的日志")
+                    .font(Theme.Typography.title3)
+                    .fontWeight(.medium)
+                    .foregroundColor(Theme.Colors.primaryText)
 
-            if searchText.isEmpty {
-                Text("代理运行时会在此显示日志")
-                    .font(Theme.Typography.body)
-                    .foregroundColor(Theme.Colors.tertiaryText)
+                if searchText.isEmpty {
+                    Text("代理服务运行时会在此显示实时日志")
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.tertiaryText)
+                } else {
+                    Text("尝试调整搜索关键词或日志级别过滤")
+                        .font(Theme.Typography.body)
+                        .foregroundColor(Theme.Colors.tertiaryText)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
     }
 
     // MARK: - Helper Methods
@@ -259,6 +307,8 @@ struct LogsView: View {
 
 private struct LogRow: View {
     let log: LogEntry
+    @State private var isHovered = false
+    @State private var showCopied = false
 
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -270,41 +320,89 @@ private struct LogRow: View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             // 时间戳
             Text(timeFormatter.string(from: log.timestamp))
-                .font(Theme.Typography.monospaced)
+                .font(Theme.Typography.monospacedDigit)
                 .foregroundColor(Theme.Colors.tertiaryText)
-                .frame(width: 90, alignment: .leading)
+                .frame(width: 95, alignment: .leading)
                 .monospacedDigit()
 
-            // 级别图标
-            Image(systemName: log.level.iconName)
-                .font(.system(size: 12))
-                .foregroundColor(levelColor)
-                .frame(width: 20)
+            // 级别标签
+            HStack(spacing: 4) {
+                Image(systemName: log.level.iconName)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(log.level.displayName)
+                    .font(.system(size: 10, weight: .medium))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(levelColor.opacity(0.9))
+            .cornerRadius(6)
+            .frame(width: 75)
 
-            // 来源
+            // 来源标签
             if let source = log.source {
-                Text("[\(source)]")
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(Theme.Colors.tertiaryText)
-                    .frame(width: 80, alignment: .leading)
+                Text(source)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Theme.Colors.secondaryText)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Theme.Colors.cardBackground.opacity(0.6))
+                    .cornerRadius(6)
+                    .frame(minWidth: 70, alignment: .center)
             }
 
-            // 消息
+            // 消息内容
             Text(log.message)
-                .font(Theme.Typography.monospaced)
+                .font(Theme.Typography.body)
                 .foregroundColor(Theme.Colors.primaryText)
                 .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // 复制按钮
+            if isHovered {
+                Button(action: copyLog) {
+                    Image(systemName: showCopied ? "checkmark.circle.fill" : "doc.on.doc")
+                        .font(.system(size: 14))
+                        .foregroundColor(
+                            showCopied ? Theme.Colors.statusActive : Theme.Colors.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .help("复制日志")
+            }
         }
-        .padding(.vertical, Theme.Spacing.sm)
+        .padding(.horizontal, Theme.Spacing.lg)
+        .padding(.vertical, Theme.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isHovered ? Theme.Colors.cardBackground.opacity(0.5) : Color.clear)
+        )
+        .onHover { hovering in
+            isHovered = hovering
+            if !hovering {
+                showCopied = false
+            }
+        }
     }
 
     private var levelColor: Color {
         switch log.level {
-        case .trace: return Theme.Colors.tertiaryText
+        case .trace: return Color.gray
         case .debug: return Theme.Colors.accent
         case .info: return Theme.Colors.statusActive
         case .warn: return Theme.Colors.statusWarning
         case .error: return Theme.Colors.statusError
+        }
+    }
+
+    private func copyLog() {
+        let logText =
+            "\(timeFormatter.string(from: log.timestamp)) [\(log.level.displayName)] \(log.source ?? "") \(log.message)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(logText, forType: .string)
+
+        showCopied = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            showCopied = false
         }
     }
 }

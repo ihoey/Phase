@@ -40,4 +40,11 @@ struct Subscription: Identifiable, Codable {
     formatter.unitsStyle = .full
     return formatter.localizedString(for: lastUpdate, relativeTo: Date())
   }
+
+  var lastUpdateShort: String {
+    guard let lastUpdate = lastUpdate else { return "从未" }
+    let formatter = RelativeDateTimeFormatter()
+    formatter.unitsStyle = .short
+    return formatter.localizedString(for: lastUpdate, relativeTo: Date())
+  }
 }

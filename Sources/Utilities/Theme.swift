@@ -143,6 +143,9 @@ enum Theme {
 
         /// 等宽字体 - 日志、代码
         static let monospaced = Font.system(.body, design: .monospaced)
+
+        /// 等宽数字 - 数字显示
+        static let monospacedDigit = Font.system(.body, design: .monospaced)
     }
 
     // MARK: - Spacing
