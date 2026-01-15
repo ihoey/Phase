@@ -4,46 +4,48 @@ import Foundation
 /// 负责启动、停止和管理 sing-box 进程
 class SingBoxService {
     static let shared = SingBoxService()
-    
+
     private var process: Process?
     private var configURL: URL
-    
+
     private init() {
         // 配置文件路径
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let appSupport = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first!
         let phaseDir = appSupport.appendingPathComponent("Phase", isDirectory: true)
         try? FileManager.default.createDirectory(at: phaseDir, withIntermediateDirectories: true)
-        
+
         configURL = phaseDir.appendingPathComponent("config.json")
     }
-    
+
     // MARK: - Public Methods
-    
+
     /// 启动 sing-box
     func start(config: SingBoxConfig) throws {
         guard process == nil else {
             print("⚠️ sing-box 已在运行")
             return
         }
-        
+
         // 保存配置文件
         try saveConfig(config)
-        
+
         // 获取 sing-box 二进制路径
         guard let binaryPath = singBoxBinaryPath() else {
             throw SingBoxError.binaryNotFound
         }
-        
+
         // 创建进程
         let newProcess = Process()
         newProcess.executableURL = URL(fileURLWithPath: binaryPath)
         newProcess.arguments = ["run", "-c", configURL.path]
-        
+
         // 重定向输出（可选，用于调试）
         let outputPipe = Pipe()
         newProcess.standardOutput = outputPipe
         newProcess.standardError = outputPipe
-        
+
         // 监听输出
         outputPipe.fileHandleForReading.readabilityHandler = { handle in
             let data = handle.availableData
@@ -51,23 +53,23 @@ class SingBoxService {
                 print("📦 sing-box: \(output.trimmingCharacters(in: .whitespacesAndNewlines))")
             }
         }
-        
+
         // 启动进程
         try newProcess.run()
         process = newProcess
-        
+
         print("🚀 sing-box 已启动 (PID: \(newProcess.processIdentifier))")
     }
-    
+
     /// 停止 sing-box
     func stop() {
         guard let process = process else {
             print("⚠️ sing-box 未在运行")
             return
         }
-        
+
         process.terminate()
-        
+
         // 等待进程结束（最多等待 3 秒）
         DispatchQueue.global().async {
             for _ in 0..<30 {
@@ -76,24 +78,24 @@ class SingBoxService {
                 }
                 Thread.sleep(forTimeInterval: 0.1)
             }
-            
+
             // 如果还未结束，强制终止
             if process.isRunning {
                 process.interrupt()
             }
         }
-        
+
         self.process = nil
         print("⏹️ sing-box 已停止")
     }
-    
+
     /// 检查 sing-box 是否在运行
     var isRunning: Bool {
         return process?.isRunning ?? false
     }
-    
+
     // MARK: - Private Methods
-    
+
     private func singBoxBinaryPath() -> String? {
         // 方案 1: 开发环境 - Sources/Resources 目录
         let currentDir = FileManager.default.currentDirectoryPath
@@ -101,14 +103,14 @@ class SingBoxService {
             currentDir + "/Sources/Resources/sing-box",
             currentDir + "/.build/debug/Phase_Phase.resources/sing-box",
         ]
-        
+
         for path in devPaths {
             if FileManager.default.fileExists(atPath: path) {
                 print("✅ 找到 sing-box: \(path)")
                 return path
             }
         }
-        
+
         // 方案 2: 从 Bundle Resources 目录加载（发布版本）
         if let resourcePath = Bundle.main.resourcePath {
             let binaryPath = resourcePath + "/sing-box"
@@ -117,30 +119,30 @@ class SingBoxService {
                 return binaryPath
             }
         }
-        
+
         // 方案 3: 从系统路径查找（如果用户已安装）
         let systemPaths = [
             "/usr/local/bin/sing-box",
             "/opt/homebrew/bin/sing-box",
-            "/usr/bin/sing-box"
+            "/usr/bin/sing-box",
         ]
-        
+
         for path in systemPaths {
             if FileManager.default.fileExists(atPath: path) {
                 print("✅ 找到 sing-box: \(path)")
                 return path
             }
         }
-        
+
         print("❌ 未找到 sing-box 二进制文件")
         print("💡 请将 sing-box 放置到以下任一位置：")
         print("   - \(currentDir)/Sources/Resources/sing-box")
         print("   - /usr/local/bin/sing-box")
         print("   - /opt/homebrew/bin/sing-box")
-        
+
         return nil
     }
-    
+
     private func saveConfig(_ config: SingBoxConfig) throws {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -159,17 +161,17 @@ struct SingBoxConfig: Codable {
     let inbounds: [Inbound]
     let outbounds: [Outbound]
     let route: RouteConfig?
-    
+
     struct LogConfig: Codable {
-        let level: String // trace, debug, info, warn, error
+        let level: String  // trace, debug, info, warn, error
         let timestamp: Bool
     }
-    
+
     struct DNSConfig: Codable {
         let servers: [DNSServer]
         let rules: [DNSRule]?
         let final: String?
-        
+
         struct DNSServer: Codable {
             let tag: String
             let type: String?
@@ -177,7 +179,7 @@ struct SingBoxConfig: Codable {
             let serverPort: Int?
             let address: String?
             let detour: String?
-            
+
             enum CodingKeys: String, CodingKey {
                 case tag
                 case type
@@ -187,54 +189,54 @@ struct SingBoxConfig: Codable {
                 case detour
             }
         }
-        
+
         struct DNSRule: Codable {
             let geosite: [String]?
             let server: String
         }
     }
-    
+
     struct Inbound: Codable {
-        let type: String // socks, http, mixed
+        let type: String  // socks, http, mixed
         let tag: String
         let listen: String
         let listenPort: Int
-        
+
         enum CodingKeys: String, CodingKey {
             case type, tag, listen
             case listenPort = "listen_port"
         }
     }
-    
+
     struct Outbound: Codable {
-        let type: String // direct, block, shadowsocks, vmess, trojan, etc.
+        let type: String  // direct, block, shadowsocks, vmess, trojan, etc.
         let tag: String
         let server: String?
         let serverPort: Int?
-        
+
         // Shadowsocks specific
         let method: String?
         let password: String?
-        
+
         enum CodingKeys: String, CodingKey {
             case type, tag, server
             case serverPort = "server_port"
             case method, password
         }
     }
-    
+
     struct RouteConfig: Codable {
         let rules: [Rule]
         let final: String
         let autoDetectInterface: Bool?
         let defaultDomainResolver: String?
-        
+
         struct Rule: Codable {
             let geosite: [String]?
             let geoip: [String]?
             let ipCidr: [String]?
             let outbound: String
-            
+
             enum CodingKeys: String, CodingKey {
                 case geosite
                 case geoip
@@ -242,7 +244,7 @@ struct SingBoxConfig: Codable {
                 case outbound
             }
         }
-        
+
         enum CodingKeys: String, CodingKey {
             case rules
             case final
@@ -259,7 +261,7 @@ enum SingBoxError: Error, LocalizedError {
     case configInvalid
     case alreadyRunning
     case notRunning
-    
+
     var errorDescription: String? {
         switch self {
         case .binaryNotFound:
@@ -286,48 +288,51 @@ extension SingBoxConfig {
             listen: "127.0.0.1",
             listenPort: 7890
         )
-        
+
         // 出站
         var outbounds: [Outbound] = []
-        
+
         // 如果有选中节点，添加代理出站
         if let node = node {
             switch node.type {
             case .shadowsocks:
-                outbounds.append(Outbound(
-                    type: "shadowsocks",
-                    tag: "proxy",
-                    server: node.server,
-                    serverPort: node.port,
-                    method: node.method ?? "aes-256-gcm",
-                    password: node.password ?? ""
-                ))
+                outbounds.append(
+                    Outbound(
+                        type: "shadowsocks",
+                        tag: "proxy",
+                        server: node.server,
+                        serverPort: node.port,
+                        method: node.method ?? "aes-256-gcm",
+                        password: node.password ?? ""
+                    ))
             default:
                 // TODO: 支持其他协议
                 break
             }
         }
-        
+
         // 直连出站
-        outbounds.append(Outbound(
-            type: "direct",
-            tag: "direct",
-            server: nil,
-            serverPort: nil,
-            method: nil,
-            password: nil
-        ))
-        
+        outbounds.append(
+            Outbound(
+                type: "direct",
+                tag: "direct",
+                server: nil,
+                serverPort: nil,
+                method: nil,
+                password: nil
+            ))
+
         // 阻断出站
-        outbounds.append(Outbound(
-            type: "block",
-            tag: "block",
-            server: nil,
-            serverPort: nil,
-            method: nil,
-            password: nil
-        ))
-        
+        outbounds.append(
+            Outbound(
+                type: "block",
+                tag: "block",
+                server: nil,
+                serverPort: nil,
+                method: nil,
+                password: nil
+            ))
+
         // 根据代理模式确定默认出站
         let finalOutbound: String
         switch mode {
@@ -338,21 +343,22 @@ extension SingBoxConfig {
         case .rule:
             finalOutbound = node != nil ? "proxy" : "direct"
         }
-        
+
         // 根据模式生成路由规则
         var rules: [RouteConfig.Rule] = []
-        
+
         if mode == .rule {
             // 规则模式：私有 IP 直连
-            rules.append(RouteConfig.Rule(
-                geosite: nil,
-                geoip: nil,
-                ipCidr: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"],
-                outbound: "direct"
-            ))
+            rules.append(
+                RouteConfig.Rule(
+                    geosite: nil,
+                    geoip: nil,
+                    ipCidr: ["192.168.0.0/16", "10.0.0.0/8", "172.16.0.0/12"],
+                    outbound: "direct"
+                ))
         }
         // 直连模式和全局模式不需要规则，由 final 控制
-        
+
         return SingBoxConfig(
             log: LogConfig(level: "info", timestamp: true),
             dns: DNSConfig(
@@ -372,7 +378,7 @@ extension SingBoxConfig {
                         serverPort: 443,
                         address: nil,
                         detour: node != nil ? "proxy" : nil
-                    )
+                    ),
                 ],
                 rules: nil,
                 final: "dns-direct"

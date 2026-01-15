@@ -7,35 +7,35 @@ struct LogsView: View {
     @State private var searchText = ""
     @State private var autoScroll = true
     @State private var isPaused = false
-    
+
     private let maxLogs = 1000
-    
+
     var filteredLogs: [LogEntry] {
         var result = logs
-        
+
         // 按级别过滤
         if let level = selectedLevel {
             result = result.filter { $0.level == level }
         }
-        
+
         // 按搜索文本过滤
         if !searchText.isEmpty {
             result = result.filter { log in
-                log.message.localizedCaseInsensitiveContains(searchText) ||
-                log.source?.localizedCaseInsensitiveContains(searchText) == true
+                log.message.localizedCaseInsensitiveContains(searchText)
+                    || log.source?.localizedCaseInsensitiveContains(searchText) == true
             }
         }
-        
+
         return result
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             // 工具栏
             toolbar
-            
+
             Divider()
-            
+
             // 日志列表
             if filteredLogs.isEmpty {
                 emptyView
@@ -51,9 +51,9 @@ struct LogsView: View {
             isPaused = true
         }
     }
-    
+
     // MARK: - Toolbar
-    
+
     private var toolbar: some View {
         HStack(spacing: Theme.Spacing.md) {
             // 日志级别过滤 - 使用 Picker 节省空间
@@ -61,13 +61,16 @@ struct LogsView: View {
                 Text("级别")
                     .font(Theme.Typography.callout)
                     .foregroundColor(Theme.Colors.secondaryText)
-                
-                Picker("", selection: Binding(
-                    get: { selectedLevel?.rawValue ?? "all" },
-                    set: { newValue in
-                        selectedLevel = LogEntry.LogLevel(rawValue: newValue)
-                    }
-                )) {
+
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { selectedLevel?.rawValue ?? "all" },
+                        set: { newValue in
+                            selectedLevel = LogEntry.LogLevel(rawValue: newValue)
+                        }
+                    )
+                ) {
                     Text("全部").tag("all")
                     ForEach(LogEntry.LogLevel.allCases, id: \.self) { level in
                         HStack {
@@ -79,18 +82,18 @@ struct LogsView: View {
                 .pickerStyle(.menu)
                 .frame(width: 120)
             }
-            
+
             Spacer()
-            
+
             // 搜索框
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(Theme.Colors.tertiaryText)
-                
+
                 TextField("搜索日志", text: $searchText)
                     .textFieldStyle(.plain)
                     .font(Theme.Typography.body)
-                
+
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -104,7 +107,7 @@ struct LogsView: View {
             .background(Theme.Colors.cardBackground)
             .cornerRadius(Theme.CornerRadius.md)
             .frame(width: 250)
-            
+
             // 自动滚动开关
             Toggle(isOn: $autoScroll) {
                 HStack(spacing: 4) {
@@ -116,7 +119,7 @@ struct LogsView: View {
             }
             .toggleStyle(.button)
             .tint(Theme.Colors.accent)
-            
+
             // 暂停/继续
             Button(action: { isPaused.toggle() }) {
                 Image(systemName: isPaused ? "play.circle.fill" : "pause.circle.fill")
@@ -124,7 +127,7 @@ struct LogsView: View {
                     .foregroundColor(isPaused ? Theme.Colors.statusActive : Theme.Colors.accent)
             }
             .buttonStyle(.plain)
-            
+
             // 清空日志
             Button(action: clearLogs) {
                 Image(systemName: "trash")
@@ -132,7 +135,7 @@ struct LogsView: View {
                     .foregroundColor(Theme.Colors.statusError)
             }
             .buttonStyle(.plain)
-            
+
             // 日志数量
             Text("\(filteredLogs.count) 条")
                 .font(Theme.Typography.callout)
@@ -140,9 +143,9 @@ struct LogsView: View {
         }
         .padding(Theme.Spacing.lg)
     }
-    
+
     // MARK: - Logs List
-    
+
     private var logsList: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -150,7 +153,7 @@ struct LogsView: View {
                     ForEach(filteredLogs) { log in
                         LogRow(log: log)
                             .id(log.id)
-                        
+
                         Divider()
                     }
                 }
@@ -166,17 +169,17 @@ struct LogsView: View {
         }
         .background(Color(nsColor: .textBackgroundColor))
     }
-    
+
     private var emptyView: some View {
         VStack(spacing: Theme.Spacing.lg) {
             Image(systemName: searchText.isEmpty ? "doc.text" : "magnifyingglass")
                 .font(.system(size: 48))
                 .foregroundColor(Theme.Colors.tertiaryText)
-            
+
             Text(searchText.isEmpty ? "暂无日志" : "未找到匹配日志")
                 .font(Theme.Typography.title3)
                 .foregroundColor(Theme.Colors.secondaryText)
-            
+
             if searchText.isEmpty {
                 Text("代理运行时会在此显示日志")
                     .font(Theme.Typography.body)
@@ -185,9 +188,9 @@ struct LogsView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func levelColor(_ level: LogEntry.LogLevel) -> Color {
         switch level {
         case .trace: return Theme.Colors.tertiaryText
@@ -197,36 +200,38 @@ struct LogsView: View {
         case .error: return Theme.Colors.statusError
         }
     }
-    
+
     private func clearLogs() {
         withAnimation {
             logs.removeAll()
         }
     }
-    
+
     // MARK: - Mock Data
-    
+
     private func startMockLogs() {
         // 添加初始日志
         logs = [
             LogEntry(level: .info, message: "Phase 已启动", source: "app"),
             LogEntry(level: .info, message: "正在加载配置文件...", source: "config"),
-            LogEntry(level: .debug, message: "配置文件路径: ~/Library/Application Support/Phase/config.json", source: "config"),
+            LogEntry(
+                level: .debug, message: "配置文件路径: ~/Library/Application Support/Phase/config.json",
+                source: "config"),
         ]
-        
+
         // 模拟定时添加新日志
         Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { timer in
             guard !isPaused else { return }
-            
+
             addMockLog()
-            
+
             // 限制日志数量
             if logs.count > maxLogs {
                 logs.removeFirst(logs.count - maxLogs)
             }
         }
     }
-    
+
     private func addMockLog() {
         let messages = [
             ("sing-box 进程已启动", LogEntry.LogLevel.info),
@@ -242,10 +247,10 @@ struct LogsView: View {
             ("代理服务器响应超时，正在重试...", LogEntry.LogLevel.warn),
             ("连接失败: timeout", LogEntry.LogLevel.error),
         ]
-        
+
         let (message, level) = messages.randomElement()!
         let log = LogEntry(level: level, message: message, source: "sing-box")
-        
+
         logs.append(log)
     }
 }
@@ -254,13 +259,13 @@ struct LogsView: View {
 
 private struct LogRow: View {
     let log: LogEntry
-    
+
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss.SSS"
         return formatter
     }()
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             // 时间戳
@@ -269,13 +274,13 @@ private struct LogRow: View {
                 .foregroundColor(Theme.Colors.tertiaryText)
                 .frame(width: 90, alignment: .leading)
                 .monospacedDigit()
-            
+
             // 级别图标
             Image(systemName: log.level.iconName)
                 .font(.system(size: 12))
                 .foregroundColor(levelColor)
                 .frame(width: 20)
-            
+
             // 来源
             if let source = log.source {
                 Text("[\(source)]")
@@ -283,7 +288,7 @@ private struct LogRow: View {
                     .foregroundColor(Theme.Colors.tertiaryText)
                     .frame(width: 80, alignment: .leading)
             }
-            
+
             // 消息
             Text(log.message)
                 .font(Theme.Typography.monospaced)
@@ -292,7 +297,7 @@ private struct LogRow: View {
         }
         .padding(.vertical, Theme.Spacing.sm)
     }
-    
+
     private var levelColor: Color {
         switch log.level {
         case .trace: return Theme.Colors.tertiaryText

@@ -9,7 +9,7 @@
 - 流量统计（实时更新）
 - 快捷开关
 
-✅ **节点页面** - 完整实现  
+✅ **节点页面** - 完整实现
 - 节点列表展示
 - 延迟测试（支持批量测试）
 - 节点切换
@@ -109,7 +109,7 @@ phase/
 - **0.5 秒可理解** ✅
   - 总览页顶部大圆点 + "代理已启用/已停止"
   - 侧边栏底部状态指示
-  
+
 - **信息层级** ✅
   - 总览页：状态 + 流量 + 当前节点（3 卡片）
   - 节点页：只关注节点列表
@@ -141,7 +141,7 @@ enum Theme {
 @MainActor
 class ProxyManager: ObservableObject {
     static let shared = ProxyManager()
-    
+
     @Published var isRunning: Bool
     @Published var selectedNode: ProxyNode?
     @Published var nodes: [ProxyNode]

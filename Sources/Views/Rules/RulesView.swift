@@ -5,18 +5,18 @@ struct RulesView: View {
     @State private var ruleGroups: [RuleGroup] = []
     @State private var selectedGroupId: UUID?
     @State private var searchText = ""
-    
+
     private var selectedGroup: RuleGroup? {
         ruleGroups.first { $0.id == selectedGroupId }
     }
-    
+
     var body: some View {
         HStack(spacing: 0) {
             // 左侧：规则组列表
             ruleGroupsList
-            
+
             Divider()
-            
+
             // 右侧：规则详情
             if let group = selectedGroup {
                 ruleDetailsView(for: group)
@@ -29,9 +29,9 @@ struct RulesView: View {
             loadMockRules()
         }
     }
-    
+
     // MARK: - Rule Groups List
-    
+
     private var ruleGroupsList: some View {
         VStack(spacing: 0) {
             // 标题
@@ -39,13 +39,13 @@ struct RulesView: View {
                 Text("规则组")
                     .font(Theme.Typography.title3)
                     .foregroundColor(Theme.Colors.primaryText)
-                
+
                 Spacer()
             }
             .padding(Theme.Spacing.lg)
-            
+
             Divider()
-            
+
             // 规则组列表
             ScrollView {
                 LazyVStack(spacing: Theme.Spacing.sm) {
@@ -67,9 +67,9 @@ struct RulesView: View {
         .frame(width: 280)
         .background(Theme.Colors.sidebarBackground)
     }
-    
+
     // MARK: - Rule Details
-    
+
     private func ruleDetailsView(for group: RuleGroup) -> some View {
         VStack(spacing: 0) {
             // 工具栏
@@ -78,11 +78,11 @@ struct RulesView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(Theme.Colors.tertiaryText)
-                    
+
                     TextField("搜索规则", text: $searchText)
                         .textFieldStyle(.plain)
                         .font(Theme.Typography.body)
-                    
+
                     if !searchText.isEmpty {
                         Button(action: { searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
@@ -96,18 +96,18 @@ struct RulesView: View {
                 .background(Theme.Colors.cardBackground)
                 .cornerRadius(Theme.CornerRadius.md)
                 .frame(maxWidth: 300)
-                
+
                 Spacer()
-                
+
                 // 规则数量
                 Text("\(filteredRules(in: group).count) 条规则")
                     .font(Theme.Typography.callout)
                     .foregroundColor(Theme.Colors.secondaryText)
             }
             .padding(Theme.Spacing.lg)
-            
+
             Divider()
-            
+
             // 规则列表
             if filteredRules(in: group).isEmpty {
                 emptyRulesView
@@ -123,49 +123,49 @@ struct RulesView: View {
             }
         }
     }
-    
+
     private var emptySelectionView: some View {
         VStack(spacing: Theme.Spacing.lg) {
             Image(systemName: "list.bullet.rectangle")
                 .font(.system(size: 48))
                 .foregroundColor(Theme.Colors.tertiaryText)
-            
+
             Text("选择规则组")
                 .font(Theme.Typography.title3)
                 .foregroundColor(Theme.Colors.secondaryText)
-            
+
             Text("从左侧选择一个规则组以查看详情")
                 .font(Theme.Typography.body)
                 .foregroundColor(Theme.Colors.tertiaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var emptyRulesView: some View {
         VStack(spacing: Theme.Spacing.lg) {
             Image(systemName: searchText.isEmpty ? "doc.text" : "magnifyingglass")
                 .font(.system(size: 48))
                 .foregroundColor(Theme.Colors.tertiaryText)
-            
+
             Text(searchText.isEmpty ? "暂无规则" : "未找到匹配规则")
                 .font(Theme.Typography.title3)
                 .foregroundColor(Theme.Colors.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func filteredRules(in group: RuleGroup) -> [RouteRule] {
         if searchText.isEmpty {
             return group.rules
         }
         return group.rules.filter { rule in
-            rule.name.localizedCaseInsensitiveContains(searchText) ||
-            rule.patterns.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            rule.name.localizedCaseInsensitiveContains(searchText)
+                || rule.patterns.contains { $0.localizedCaseInsensitiveContains(searchText) }
         }
     }
-    
+
     private func loadMockRules() {
         ruleGroups = [
             RuleGroup(
@@ -235,7 +235,7 @@ struct RulesView: View {
                 ]
             ),
         ]
-        
+
         selectedGroupId = ruleGroups.first?.id
     }
 }
@@ -246,7 +246,7 @@ private struct RuleGroupCell: View {
     let group: RuleGroup
     let isSelected: Bool
     let onSelect: () -> Void
-    
+
     var body: some View {
         Button(action: onSelect) {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
@@ -255,21 +255,21 @@ private struct RuleGroupCell: View {
                     Circle()
                         .fill(actionColor)
                         .frame(width: 8, height: 8)
-                    
+
                     Text(group.name)
                         .font(Theme.Typography.bodyBold)
                         .foregroundColor(Theme.Colors.primaryText)
-                    
+
                     Spacer()
                 }
-                
+
                 HStack {
                     Text("\(group.rules.count) 条规则")
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Colors.tertiaryText)
-                    
+
                     Spacer()
-                    
+
                     Text(group.action.rawValue)
                         .font(Theme.Typography.caption)
                         .padding(.horizontal, 6)
@@ -291,7 +291,7 @@ private struct RuleGroupCell: View {
         }
         .buttonStyle(.plain)
     }
-    
+
     private var actionColor: Color {
         switch group.action {
         case .proxy: return Theme.Colors.accent
@@ -305,7 +305,7 @@ private struct RuleGroupCell: View {
 
 private struct RuleCell: View {
     let rule: RouteRule
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             // 规则名称和类型
@@ -314,14 +314,14 @@ private struct RuleCell: View {
                     Image(systemName: rule.type.iconName)
                         .font(.system(size: 14))
                         .foregroundColor(Theme.Colors.accent)
-                    
+
                     Text(rule.name)
                         .font(Theme.Typography.bodyBold)
                         .foregroundColor(Theme.Colors.primaryText)
                 }
-                
+
                 Spacer()
-                
+
                 // 规则类型标签
                 Text(rule.type.rawValue)
                     .font(Theme.Typography.caption)
@@ -331,7 +331,7 @@ private struct RuleCell: View {
                     .foregroundColor(Theme.Colors.accent)
                     .cornerRadius(4)
             }
-            
+
             // 规则模式
             if !rule.patterns.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -340,13 +340,13 @@ private struct RuleCell: View {
                             Circle()
                                 .fill(Theme.Colors.tertiaryText)
                                 .frame(width: 4, height: 4)
-                            
+
                             Text(pattern)
                                 .font(Theme.Typography.callout)
                                 .foregroundColor(Theme.Colors.secondaryText)
                         }
                     }
-                    
+
                     if rule.patterns.count > 3 {
                         Text("还有 \(rule.patterns.count - 3) 项...")
                             .font(Theme.Typography.caption)
