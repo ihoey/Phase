@@ -41,7 +41,7 @@ enum NavigationItem: String, CaseIterable, Identifiable {
         case .settings: return "gearshape"
         }
     }
-    
+
     var group: NavigationGroup {
         switch self {
         case .overview, .traffic, .connections, .logs:
@@ -56,7 +56,7 @@ enum NavigationItem: String, CaseIterable, Identifiable {
             return .settings
         }
     }
-    
+
     static var groupedItems: [(group: NavigationGroup, items: [NavigationItem])] {
         let groups: [NavigationGroup] = [.main, .proxy, .settings, .experimental]
         return groups.compactMap { group in
@@ -103,21 +103,21 @@ struct Sidebar: View {
                             )
                         )
                         .frame(width: 32, height: 32)
-                    
+
                     Image(systemName: "bolt.shield.fill")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                 }
-                
+
                 Text("Phase")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundColor(Theme.Colors.primaryText)
-                
+
                 Spacer()
             }
             .padding(.horizontal, Theme.Spacing.lg)
             .padding(.vertical, Theme.Spacing.md)
-            
+
             Divider()
                 .padding(.horizontal, Theme.Spacing.md)
 
@@ -135,7 +135,7 @@ struct Sidebar: View {
                                     .padding(.top, Theme.Spacing.md)
                                     .padding(.bottom, 4)
                             }
-                            
+
                             ForEach(items) { item in
                                 SidebarButton(
                                     item: item,
@@ -151,7 +151,7 @@ struct Sidebar: View {
             }
 
             Spacer()
-            
+
             Divider()
                 .padding(.horizontal, Theme.Spacing.md)
 
@@ -168,9 +168,9 @@ struct Sidebar: View {
                     .foregroundColor(Theme.Colors.secondaryText)
                 }
                 .buttonStyle(.plain)
-                
+
                 Spacer()
-                
+
                 // 设置按钮
                 Button(action: { selectedItem = .settings }) {
                     HStack(spacing: 6) {
@@ -182,7 +182,7 @@ struct Sidebar: View {
                     .foregroundColor(Theme.Colors.secondaryText)
                 }
                 .buttonStyle(.plain)
-                
+
                 // 外部链接按钮
                 Button(action: {}) {
                     Image(systemName: "arrow.up.forward.square")
@@ -203,7 +203,7 @@ struct SidebarButton: View {
     let item: NavigationItem
     let isSelected: Bool
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
@@ -211,11 +211,11 @@ struct SidebarButton: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(isSelected ? .white : Theme.Colors.secondaryText)
                     .frame(width: 20)
-                
+
                 Text(item.rawValue)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? .white : Theme.Colors.primaryText)
-                
+
                 Spacer()
             }
             .padding(.horizontal, Theme.Spacing.md)
@@ -239,9 +239,9 @@ struct DetailView: View {
         VStack(spacing: 0) {
             // 顶部工具栏
             TopToolbar()
-            
+
             Divider()
-            
+
             // 主内容
             Group {
                 switch selectedItem {
@@ -270,7 +270,8 @@ struct DetailView: View {
                 case .resources:
                     PlaceholderView(title: "资源", icon: "externaldrive.connected.to.line.below")
                 case .topology:
-                    PlaceholderView(title: "拓扑", icon: "point.topleft.down.to.point.bottomright.curvepath")
+                    PlaceholderView(
+                        title: "拓扑", icon: "point.topleft.down.to.point.bottomright.curvepath")
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -283,16 +284,16 @@ struct DetailView: View {
 struct TopToolbar: View {
     @EnvironmentObject var proxyManager: ProxyManager
     @State private var selectedMode: ProxyMode = .rule
-    
+
     var body: some View {
         HStack(spacing: 16) {
             // 左侧标题
             Text("Phase 面板")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.primary)
-            
+
             Spacer()
-            
+
             // 通知按钮
             Button(action: {}) {
                 Image(systemName: "bell")
@@ -300,7 +301,7 @@ struct TopToolbar: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.plain)
-            
+
             // 配置选择器
             Menu {
                 Button("Default Config") {}
@@ -321,7 +322,7 @@ struct TopToolbar: View {
             }
             .menuStyle(.borderlessButton)
             .frame(width: 100)
-            
+
             // 模式切换
             HStack(spacing: 0) {
                 ForEach(ProxyMode.allCases, id: \.self) { mode in
@@ -352,22 +353,26 @@ struct TopToolbar: View {
             .padding(3)
             .background(Color.gray.opacity(0.1))
             .cornerRadius(8)
-            
+
             Divider()
                 .frame(height: 20)
-            
+
             // 快捷操作按钮
             HStack(spacing: 8) {
                 // 系统代理开关
                 Button(action: { proxyManager.toggleSystemProxy() }) {
-                    Image(systemName: proxyManager.isSystemProxyEnabled ? "globe" : "globe.badge.chevron.backward")
-                        .font(.system(size: 14))
-                        .foregroundColor(proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : .secondary)
+                    Image(
+                        systemName: proxyManager.isSystemProxyEnabled
+                            ? "globe" : "globe.badge.chevron.backward"
+                    )
+                    .font(.system(size: 14))
+                    .foregroundColor(
+                        proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : .secondary)
                 }
                 .buttonStyle(.plain)
                 .help("系统代理")
                 .disabled(!proxyManager.isRunning)
-                
+
                 // 刷新按钮
                 Button(action: {}) {
                     Image(systemName: "arrow.triangle.2.circlepath")
@@ -376,12 +381,13 @@ struct TopToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .help("刷新连接")
-                
+
                 // 主开关
                 Button(action: { proxyManager.toggleProxy() }) {
                     Image(systemName: proxyManager.isRunning ? "power.circle.fill" : "power.circle")
                         .font(.system(size: 18))
-                        .foregroundColor(proxyManager.isRunning ? Theme.Colors.statusActive : .secondary)
+                        .foregroundColor(
+                            proxyManager.isRunning ? Theme.Colors.statusActive : .secondary)
                 }
                 .buttonStyle(.plain)
                 .help(proxyManager.isRunning ? "停止代理" : "启动代理")
