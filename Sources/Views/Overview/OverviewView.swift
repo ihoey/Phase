@@ -1073,7 +1073,8 @@ struct PremiumWeeklyChart: View {
     var body: some View {
         GeometryReader { geometry in
             let spacing: CGFloat = 10
-            let barWidth: CGFloat = (geometry.size.width - CGFloat(data.count - 1) * spacing) / CGFloat(data.count)
+            let barWidth: CGFloat =
+                (geometry.size.width - CGFloat(data.count - 1) * spacing) / CGFloat(data.count)
             let chartHeight: CGFloat = geometry.size.height - 24  // 留给底部标签
 
             ZStack {
@@ -1096,7 +1097,9 @@ struct PremiumWeeklyChart: View {
                                 RoundedRectangle(cornerRadius: 6)
                                     .fill(
                                         LinearGradient(
-                                            colors: [Color.gray.opacity(0.08), Color.gray.opacity(0.15)],
+                                            colors: [
+                                                Color.gray.opacity(0.08), Color.gray.opacity(0.15),
+                                            ],
                                             startPoint: .top,
                                             endPoint: .bottom
                                         )
@@ -1114,11 +1117,14 @@ struct PremiumWeeklyChart: View {
                                     )
                                     .frame(
                                         height: isAnimated
-                                            ? max(8, chartHeight * 0.88 * CGFloat(item.value / maxValue))
+                                            ? max(
+                                                8,
+                                                chartHeight * 0.88 * CGFloat(item.value / maxValue))
                                             : 8
                                     )
                                     .shadow(
-                                        color: item.isToday ? Color.orange.opacity(0.4) : Color.clear,
+                                        color: item.isToday
+                                            ? Color.orange.opacity(0.4) : Color.clear,
                                         radius: 6,
                                         y: 2
                                     )
@@ -1129,7 +1135,10 @@ struct PremiumWeeklyChart: View {
                                                 RoundedRectangle(cornerRadius: 6)
                                                     .stroke(
                                                         LinearGradient(
-                                                            colors: [Color.orange, Color.orange.opacity(0.5)],
+                                                            colors: [
+                                                                Color.orange,
+                                                                Color.orange.opacity(0.5),
+                                                            ],
                                                             startPoint: .top,
                                                             endPoint: .bottom
                                                         ),
@@ -1170,7 +1179,9 @@ struct PremiumWeeklyChart: View {
                             // 日期标签
                             Text(item.shortDay)
                                 .font(.system(size: 11, weight: item.isToday ? .bold : .medium))
-                                .foregroundColor(item.isToday ? .orange : (hoveredIndex == index ? .primary : .secondary))
+                                .foregroundColor(
+                                    item.isToday
+                                        ? .orange : (hoveredIndex == index ? .primary : .secondary))
                         }
                         .scaleEffect(hoveredIndex == index ? 1.03 : 1.0)
                         .animation(.easeInOut(duration: 0.15), value: hoveredIndex)
@@ -1191,7 +1202,9 @@ struct PremiumWeeklyChart: View {
     }
 
     // 柱状颜色
-    private func barColors(for item: (day: String, shortDay: String, value: Double, isToday: Bool), at index: Int) -> [Color] {
+    private func barColors(
+        for item: (day: String, shortDay: String, value: Double, isToday: Bool), at index: Int
+    ) -> [Color] {
         if item.isToday {
             return [Color.orange.opacity(0.8), Color.orange]
         } else if hoveredIndex == index {
@@ -1199,20 +1212,6 @@ struct PremiumWeeklyChart: View {
         } else {
             return [Color.gray.opacity(0.35), Color.gray.opacity(0.55)]
         }
-    }
-}
-
-// MARK: - 旧版柱状图（保留兼容）
-
-struct EnhancedWeeklyBarChart: View {
-    var body: some View {
-        PremiumWeeklyChart()
-    }
-}
-
-struct WeeklyBarChart: View {
-    var body: some View {
-        PremiumWeeklyChart()
     }
 }
 
