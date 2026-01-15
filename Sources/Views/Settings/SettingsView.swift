@@ -8,19 +8,19 @@ struct SettingsView: View {
     @AppStorage("socksPort") private var socksPort = 7890
     @AppStorage("logLevel") private var logLevel = "info"
     @AppStorage("dnsServer") private var dnsServer = "223.5.5.5"
-    
+
     var body: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.xl) {
                 // 通用设置
                 generalSettings
-                
+
                 // 代理设置
                 proxySettings
-                
+
                 // 高级设置
                 advancedSettings
-                
+
                 // 关于
                 aboutSection
             }
@@ -30,9 +30,9 @@ struct SettingsView: View {
         .frame(maxWidth: .infinity)
         .background(Theme.Colors.background)
     }
-    
+
     // MARK: - General Settings
-    
+
     private var generalSettings: some View {
         SettingsSection(title: "通用") {
             SettingsRow(
@@ -43,9 +43,9 @@ struct SettingsView: View {
                 Toggle("", isOn: $launchAtLogin)
                     .labelsHidden()
             }
-            
+
             Divider()
-            
+
             SettingsRow(
                 icon: "arrow.down.circle",
                 title: "自动更新",
@@ -56,9 +56,9 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: - Proxy Settings
-    
+
     private var proxySettings: some View {
         SettingsSection(title: "代理") {
             SettingsRow(
@@ -71,9 +71,9 @@ struct SettingsView: View {
                     .frame(width: 100)
                     .multilineTextAlignment(.trailing)
             }
-            
+
             Divider()
-            
+
             SettingsRow(
                 icon: "network",
                 title: "SOCKS5 端口",
@@ -84,13 +84,15 @@ struct SettingsView: View {
                     .frame(width: 100)
                     .multilineTextAlignment(.trailing)
             }
-            
+
             Divider()
-            
+
             SettingsRow(
                 icon: "folder",
                 title: "配置目录",
-                subtitle: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Phase").path ?? "Unknown"
+                subtitle: FileManager.default.urls(
+                    for: .applicationSupportDirectory, in: .userDomainMask
+                ).first?.appendingPathComponent("Phase").path ?? "Unknown"
             ) {
                 Button("打开") {
                     openConfigDirectory()
@@ -99,9 +101,9 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: - Advanced Settings
-    
+
     private var advancedSettings: some View {
         SettingsSection(title: "高级") {
             SettingsRow(
@@ -119,9 +121,9 @@ struct SettingsView: View {
                 .pickerStyle(.menu)
                 .frame(width: 120)
             }
-            
+
             Divider()
-            
+
             SettingsRow(
                 icon: "server.rack",
                 title: "DNS 服务器",
@@ -132,9 +134,9 @@ struct SettingsView: View {
                     .frame(width: 150)
                     .multilineTextAlignment(.trailing)
             }
-            
+
             Divider()
-            
+
             SettingsRow(
                 icon: "trash",
                 title: "清除缓存",
@@ -148,9 +150,9 @@ struct SettingsView: View {
             }
         }
     }
-    
+
     // MARK: - About Section
-    
+
     private var aboutSection: some View {
         CardView {
             VStack(spacing: Theme.Spacing.lg) {
@@ -159,30 +161,34 @@ struct SettingsView: View {
                     Image(systemName: "network")
                         .font(.system(size: 48))
                         .foregroundColor(Theme.Colors.accent)
-                    
+
                     Text("Phase")
                         .font(Theme.Typography.title1)
                         .foregroundColor(Theme.Colors.primaryText)
-                    
+
                     Text("版本 0.1.0")
                         .font(Theme.Typography.callout)
                         .foregroundColor(Theme.Colors.secondaryText)
                 }
-                
+
                 Divider()
-                
+
                 // 信息行
                 VStack(spacing: Theme.Spacing.md) {
                     AboutRow(label: "内核", value: "sing-box")
                     AboutRow(label: "许可证", value: "MIT License")
                     AboutRow(label: "构建日期", value: "2026-01-15")
                 }
-                
+
                 Divider()
-                
+
                 // 链接
                 HStack(spacing: Theme.Spacing.lg) {
-                    Button(action: {}) {
+                    Button(action: {
+                        if let url = URL(string: "https://github.com/ihoey/Phase") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
                         HStack(spacing: 6) {
                             Image(systemName: "link")
                             Text("GitHub")
@@ -190,7 +196,7 @@ struct SettingsView: View {
                         .font(Theme.Typography.callout)
                     }
                     .buttonStyle(.bordered)
-                    
+
                     Button(action: {}) {
                         HStack(spacing: 6) {
                             Image(systemName: "doc.text")
@@ -199,7 +205,7 @@ struct SettingsView: View {
                         .font(Theme.Typography.callout)
                     }
                     .buttonStyle(.bordered)
-                    
+
                     Button(action: {}) {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.bubble")
@@ -213,14 +219,18 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity)
         }
     }
-    
+
     // MARK: - Helper Methods
-    
+
     private func openConfigDirectory() {
-        guard let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Phase") else { return }
+        guard
+            let url = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            ).first?.appendingPathComponent("Phase")
+        else { return }
         NSWorkspace.shared.open(url)
     }
-    
+
     private func clearCache() {
         // TODO: 实现清除缓存逻辑
         print("清除缓存")
@@ -232,18 +242,18 @@ struct SettingsView: View {
 private struct SettingsSection<Content: View>: View {
     let title: String
     let content: Content
-    
+
     init(title: String, @ViewBuilder content: () -> Content) {
         self.title = title
         self.content = content()
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
             Text(title)
                 .font(Theme.Typography.title3)
                 .foregroundColor(Theme.Colors.primaryText)
-            
+
             CardView(padding: 0) {
                 VStack(spacing: 0) {
                     content
@@ -260,7 +270,7 @@ private struct SettingsRow<Content: View>: View {
     let title: String
     let subtitle: String
     let trailing: Content
-    
+
     init(
         icon: String,
         title: String,
@@ -272,7 +282,7 @@ private struct SettingsRow<Content: View>: View {
         self.subtitle = subtitle
         self.trailing = trailing()
     }
-    
+
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             // 图标
@@ -280,21 +290,21 @@ private struct SettingsRow<Content: View>: View {
                 .font(.system(size: 20))
                 .foregroundColor(Theme.Colors.accent)
                 .frame(width: 32)
-            
+
             // 标题和副标题
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(Theme.Typography.bodyBold)
                     .foregroundColor(Theme.Colors.primaryText)
-                
+
                 Text(subtitle)
                     .font(Theme.Typography.caption)
                     .foregroundColor(Theme.Colors.secondaryText)
                     .lineLimit(1)
             }
-            
+
             Spacer()
-            
+
             // 右侧控件
             trailing
         }
@@ -307,15 +317,15 @@ private struct SettingsRow<Content: View>: View {
 private struct AboutRow: View {
     let label: String
     let value: String
-    
+
     var body: some View {
         HStack {
             Text(label)
                 .font(Theme.Typography.callout)
                 .foregroundColor(Theme.Colors.secondaryText)
-            
+
             Spacer()
-            
+
             Text(value)
                 .font(Theme.Typography.callout)
                 .foregroundColor(Theme.Colors.primaryText)

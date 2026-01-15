@@ -49,8 +49,8 @@ Sources/
 ### 1. 克隆项目
 
 ```bash
-git clone <your-repo-url>
-cd phase
+git clone https://github.com/ihoey/Phase
+cd Phase
 ```
 
 ### 2. 安装 sing-box（可选）

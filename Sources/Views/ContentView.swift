@@ -5,7 +5,6 @@ enum NavigationGroup: String, CaseIterable {
     case main = ""
     case proxy = "代理"
     case settings = "设置"
-    case experimental = "实验"
 }
 
 /// 导航目标枚举
@@ -16,10 +15,7 @@ enum NavigationItem: String, CaseIterable, Identifiable {
     case logs = "日志"
     case nodes = "节点"
     case rules = "规则"
-    case resources = "资源"
     case config = "配置"
-    case advanced = "高级"
-    case topology = "拓扑"
     case subscriptions = "订阅"
     case settings = "设置"
 
@@ -33,10 +29,7 @@ enum NavigationItem: String, CaseIterable, Identifiable {
         case .logs: return "doc.text.magnifyingglass"
         case .nodes: return "server.rack"
         case .rules: return "list.bullet.indent"
-        case .resources: return "externaldrive.connected.to.line.below"
         case .config: return "slider.horizontal.3"
-        case .advanced: return "gearshape.2"
-        case .topology: return "point.topleft.down.to.point.bottomright.curvepath"
         case .subscriptions: return "link.badge.plus"
         case .settings: return "gearshape"
         }
@@ -46,19 +39,17 @@ enum NavigationItem: String, CaseIterable, Identifiable {
         switch self {
         case .overview, .traffic, .connections, .logs:
             return .main
-        case .nodes, .rules, .resources, .subscriptions:
+        case .nodes, .rules, .subscriptions:
             return .proxy
-        case .config, .advanced:
+        case .config:
             return .settings
-        case .topology:
-            return .experimental
         case .settings:
             return .settings
         }
     }
 
     static var groupedItems: [(group: NavigationGroup, items: [NavigationItem])] {
-        let groups: [NavigationGroup] = [.main, .proxy, .settings, .experimental]
+        let groups: [NavigationGroup] = [.main, .proxy, .settings]
         return groups.compactMap { group in
             let items = NavigationItem.allCases.filter { $0.group == group && $0 != .settings }
             if items.isEmpty { return nil }
@@ -195,6 +186,7 @@ struct Sidebar: View {
                             )
                         )
                         .frame(width: 32, height: 32)
+                        .shadow(color: Color.blue.opacity(0.3), radius: 4, x: 0, y: 2)
 
                     Image(systemName: "bolt.shield.fill")
                         .font(.system(size: 16, weight: .semibold))
@@ -248,40 +240,27 @@ struct Sidebar: View {
                 .padding(.horizontal, Theme.Spacing.md)
 
             // 底部工具栏
-            HStack(spacing: Theme.Spacing.lg) {
+            HStack(spacing: Theme.Spacing.sm) {
                 // 关于按钮
-                Button(action: {}) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 14))
-                        Text("关于")
-                            .font(.system(size: 13))
-                    }
-                    .foregroundColor(Theme.Colors.secondaryText)
-                }
-                .buttonStyle(.plain)
+                SidebarFooterButton(icon: "info.circle", tooltip: "关于") {}
 
                 Spacer()
 
                 // 设置按钮
-                Button(action: { selectedItem = .settings }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 14))
-                        Text("设置")
-                            .font(.system(size: 13))
-                    }
-                    .foregroundColor(Theme.Colors.secondaryText)
+                SidebarFooterButton(
+                    icon: selectedItem == .settings ? "gearshape.fill" : "gearshape",
+                    tooltip: "设置",
+                    isActive: selectedItem == .settings
+                ) {
+                    selectedItem = .settings
                 }
-                .buttonStyle(.plain)
 
                 // 外部链接按钮
-                Button(action: {}) {
-                    Image(systemName: "arrow.up.forward.square")
-                        .font(.system(size: 14))
-                        .foregroundColor(Theme.Colors.secondaryText)
+                SidebarFooterButton(icon: "arrow.up.forward.square", tooltip: "GitHub") {
+                    if let url = URL(string: "https://github.com/ihoey/Phase") {
+                        NSWorkspace.shared.open(url)
+                    }
                 }
-                .buttonStyle(.plain)
             }
             .padding(.horizontal, Theme.Spacing.lg)
             .padding(.vertical, Theme.Spacing.md)
@@ -296,29 +275,116 @@ struct SidebarButton: View {
     let isSelected: Bool
     let action: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: item.icon)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isSelected ? .white : Theme.Colors.secondaryText)
+                    .foregroundColor(
+                        isSelected
+                            ? .white
+                            : (isHovered ? Theme.Colors.primaryText : Theme.Colors.secondaryText)
+                    )
                     .frame(width: 20)
+                    .symbolEffect(.bounce, value: isSelected)
 
                 Text(item.rawValue)
                     .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? .white : Theme.Colors.primaryText)
 
                 Spacer()
+
+                // 徽章显示（可选）
+                if let badge = badgeCount {
+                    Text("\(badge)")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(
+                            isSelected ? .white.opacity(0.9) : Theme.Colors.secondaryText
+                        )
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(
+                                    isSelected
+                                        ? Color.white.opacity(0.2)
+                                        : Theme.Colors.separator.opacity(0.5))
+                        )
+                }
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? Color.accentColor : Color.clear)
+                    .fill(backgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .strokeBorder(
+                        isHovered && !isSelected
+                            ? Theme.Colors.separator.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
         .padding(.horizontal, Theme.Spacing.sm)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return Color.accentColor
+        } else if isHovered {
+            return Theme.Colors.separator.opacity(0.15)
+        } else {
+            return Color.clear
+        }
+    }
+
+    /// 徽章计数（根据项目类型返回）
+    private var badgeCount: Int? {
+        // 可以根据需要连接实际数据
+        // 例如：节点数量、未读日志数等
+        nil
+    }
+}
+
+/// 侧边栏底部按钮
+struct SidebarFooterButton: View {
+    let icon: String
+    var tooltip: String = ""
+    var isActive: Bool = false
+    let action: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(
+                    isActive
+                        ? Theme.Colors.accent
+                        : (isHovered ? Theme.Colors.primaryText : Theme.Colors.secondaryText)
+                )
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(isHovered ? Theme.Colors.separator.opacity(0.2) : Color.clear)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(tooltip)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 
@@ -349,15 +415,10 @@ struct DetailView: View {
                 RulesView()
             case .logs:
                 LogsView()
-            case .settings, .config, .advanced:
+            case .settings, .config:
                 SettingsView()
             case .connections:
                 PlaceholderView(title: "连接", icon: "point.3.connected.trianglepath.dotted")
-            case .resources:
-                PlaceholderView(title: "资源", icon: "externaldrive.connected.to.line.below")
-            case .topology:
-                PlaceholderView(
-                    title: "拓扑", icon: "point.topleft.down.to.point.bottomright.curvepath")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
