@@ -6,363 +6,422 @@ struct OverviewView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Theme.Spacing.xl) {
-                // 状态卡片
-                statusCard
-
-                // 代理模式卡片
-                modeCard
-
-                // 当前节点卡片
-                currentNodeCard
-            }
-            .padding(Theme.Spacing.xl)
-            .frame(maxWidth: Theme.Layout.cardMaxWidth)
-        }
-        .frame(maxWidth: .infinity)
-        .background(Theme.Colors.background)
-    }
-
-    // MARK: - Status Card
-
-    private var statusCard: some View {
-        CardView {
             VStack(spacing: Theme.Spacing.lg) {
-                HStack {
-                    Text("代理状态")
-                        .font(Theme.Typography.title3)
-                        .foregroundColor(Theme.Colors.primaryText)
-
-                    Spacer()
-                }
-
-                // 大状态指示器
-                HStack(spacing: Theme.Spacing.lg) {
-                    Circle()
-                        .fill(
-                            proxyManager.isRunning
-                                ? Theme.Colors.statusActive : Theme.Colors.statusInactive
-                        )
-                        .frame(width: 20, height: 20)
-                        .shadow(
-                            color: proxyManager.isRunning
-                                ? Theme.Colors.statusActive.opacity(0.5) : .clear,
-                            radius: 8
-                        )
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(proxyManager.isRunning ? "代理已启用" : "代理已停止")
-                            .font(Theme.Typography.title2)
-                            .foregroundColor(Theme.Colors.primaryText)
-
-                        if proxyManager.isRunning, let node = proxyManager.selectedNode {
-                            Text(node.name)
-                                .font(Theme.Typography.body)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(.vertical, Theme.Spacing.sm)
-
-                Divider()
-
-                // 系统代理状态
-                HStack {
-                    HStack(spacing: 6) {
-                        Image(systemName: "network")
-                            .font(.system(size: 14))
-                        Text("系统代理")
-                            .font(Theme.Typography.callout)
-                    }
-                    .foregroundColor(Theme.Colors.secondaryText)
-
-                    Spacer()
-
-                    HStack(spacing: 12) {
-                        Text(proxyManager.isSystemProxyEnabled ? "已启用" : "未启用")
-                            .font(Theme.Typography.callout)
-                            .foregroundColor(
-                                proxyManager.isSystemProxyEnabled
-                                    ? Theme.Colors.statusActive : Theme.Colors.tertiaryText)
-
-                        // 系统代理开关按钮
-                        Button(action: {
-                            withAnimation(Theme.Animation.standard) {
-                                proxyManager.toggleSystemProxy()
-                            }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(
-                                    systemName: proxyManager.isSystemProxyEnabled
-                                        ? "checkmark.circle.fill" : "circle"
-                                )
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(
-                                    proxyManager.isRunning
-                                        ? (proxyManager.isSystemProxyEnabled
-                                            ? Theme.Colors.statusActive
-                                            : Theme.Colors.secondaryText)
-                                        : Theme.Colors.tertiaryText)
-                                
-                                Text(proxyManager.isSystemProxyEnabled ? "关闭" : "开启")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(
-                                        proxyManager.isRunning
-                                            ? Theme.Colors.accent
-                                            : Theme.Colors.tertiaryText)
-                            }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                proxyManager.isRunning
-                                    ? Theme.Colors.accent.opacity(0.1)
-                                    : Color.gray.opacity(0.1)
-                            )
-                            .cornerRadius(6)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!proxyManager.isRunning)
-                    }
-                }
-
-                Divider()
-
-                // 开关按钮
-                Button(action: {
-                    withAnimation(Theme.Animation.standard) {
-                        proxyManager.toggleProxy()
-                    }
-                }) {
-                    HStack {
-                        Image(
-                            systemName: proxyManager.isRunning
-                                ? "stop.circle.fill" : "play.circle.fill"
-                        )
-                        .font(.system(size: 18))
-                        Text(proxyManager.isRunning ? "停止代理" : "启动代理")
-                            .font(Theme.Typography.bodyBold)
+                // 顶部状态栏
+                topStatusBar
+                
+                // 主要内容区域
+                HStack(alignment: .top, spacing: Theme.Spacing.lg) {
+                    // 左侧列
+                    VStack(spacing: Theme.Spacing.lg) {
+                        // 运行状态卡片
+                        runningStatusCard
+                        
+                        // 流量统计卡片
+                        trafficStatsCard
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, Theme.Spacing.md)
-                    .background(Theme.Colors.accent)
-                    .foregroundColor(.white)
-                    .cornerRadius(Theme.CornerRadius.md)
+                    
+                    // 右侧列
+                    VStack(spacing: Theme.Spacing.lg) {
+                        // 网络状态卡片
+                        networkStatusCard
+                        
+                        // 控制面板
+                        controlPanelCard
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(Theme.Spacing.xl)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Theme.Colors.background)
+    }
+    
+    // MARK: - Top Status Bar
+    
+    private var topStatusBar: some View {
+        HStack(spacing: Theme.Spacing.md) {
+            // 代理模式切换
+            ForEach(ProxyMode.allCases, id: \.self) { mode in
+                Button(action: {
+                    withAnimation(Theme.Animation.standard) {
+                        proxyManager.switchMode(mode)
+                    }
+                }) {
+                    Text(mode.rawValue)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(
+                            proxyManager.proxyMode == mode
+                                ? .white
+                                : Theme.Colors.secondaryText
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 6)
+                        .background(
+                            proxyManager.proxyMode == mode
+                                ? Theme.Colors.accent
+                                : Theme.Colors.cardBackground
+                        )
+                        .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
             }
-        }
-    }
-
-    // MARK: - Traffic Card
-
-    private var trafficCard: some View {
-        CardView {
-            VStack(spacing: Theme.Spacing.lg) {
-                HStack {
-                    Text("流量统计")
-                        .font(Theme.Typography.title3)
-                        .foregroundColor(Theme.Colors.primaryText)
-
-                    Spacer()
-
-                    if proxyManager.isRunning {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Theme.Colors.statusActive)
-                                .frame(width: 6, height: 6)
-                            Text("实时")
-                                .font(Theme.Typography.caption)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-                    }
-                }
-
-                HStack(spacing: Theme.Spacing.xl) {
-                    // 上传
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .foregroundColor(Theme.Colors.accent)
-                            Text("上传")
-                                .font(Theme.Typography.callout)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-
-                        Text(proxyManager.trafficStats.uploadFormatted)
-                            .font(Theme.Typography.title2)
-                            .foregroundColor(Theme.Colors.primaryText)
-                            .monospacedDigit()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Divider()
-
-                    // 下载
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "arrow.down.circle.fill")
-                                .foregroundColor(Theme.Colors.statusActive)
-                            Text("下载")
-                                .font(Theme.Typography.callout)
-                                .foregroundColor(Theme.Colors.secondaryText)
-                        }
-
-                        Text(proxyManager.trafficStats.downloadFormatted)
-                            .font(Theme.Typography.title2)
-                            .foregroundColor(Theme.Colors.primaryText)
-                            .monospacedDigit()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
+            
+            Spacer()
+            
+            // 系统代理指示器
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(proxyManager.isSystemProxyEnabled ? Color.green : Color.gray.opacity(0.3))
+                    .frame(width: 8, height: 8)
+                Text("系统代理")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.Colors.secondaryText)
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Theme.Colors.cardBackground)
+            .cornerRadius(6)
         }
     }
-
-    // MARK: - Mode Card
-
-    private var modeCard: some View {
+    
+    // MARK: - Running Status Card
+    
+    private var runningStatusCard: some View {
         CardView {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 HStack {
-                    Image(systemName: "switch.2")
-                        .font(.system(size: 20))
+                    Image(systemName: "bolt.circle.fill")
+                        .font(.system(size: 16))
                         .foregroundColor(Theme.Colors.accent)
-
-                    Text("代理模式")
-                        .font(Theme.Typography.title3)
-                        .foregroundColor(Theme.Colors.primaryText)
-
+                    Text("运行状态")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Theme.Colors.secondaryText)
                     Spacer()
                 }
-
-                Divider()
-
-                HStack(spacing: Theme.Spacing.md) {
-                    ForEach(ProxyMode.allCases, id: \.self) { mode in
-                        ModeButton(
-                            mode: mode,
-                            isSelected: proxyManager.proxyMode == mode,
-                            action: {
-                                proxyManager.switchMode(mode)
+                
+                HStack(spacing: Theme.Spacing.xl) {
+                    // 状态
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("状态")
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.Colors.tertiaryText)
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(proxyManager.isRunning ? Color.green : Color.red)
+                                .frame(width: 8, height: 8)
+                            Text(proxyManager.isRunning ? "已连接" : "未连接")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(Theme.Colors.primaryText)
+                        }
+                    }
+                    
+                    Divider()
+                        .frame(height: 30)
+                    
+                    // 节点
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("节点")
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.Colors.tertiaryText)
+                        if let node = proxyManager.selectedNode {
+                            HStack(spacing: 6) {
+                                Text(node.name)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundColor(Theme.Colors.primaryText)
+                                    .lineLimit(1)
+                                if let latency = node.latency {
+                                    Text("\(latency)ms")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundColor(latencyColor(for: latency))
+                                }
                             }
+                        } else {
+                            Text("未选择")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(Theme.Colors.tertiaryText)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+            }
+        }
+    }
+    
+    // MARK: - Traffic Stats Card
+    
+    private var trafficStatsCard: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                HStack {
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.system(size: 16))
+                        .foregroundColor(Theme.Colors.accent)
+                    Text("流量统计")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Theme.Colors.secondaryText)
+                    Spacer()
+                    if proxyManager.isRunning {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 6, height: 6)
+                            Text("实时")
+                                .font(.system(size: 10))
+                                .foregroundColor(Theme.Colors.tertiaryText)
+                        }
+                    }
+                }
+                
+                VStack(spacing: Theme.Spacing.md) {
+                    // 实时速率图表
+                    if proxyManager.isRunning && !proxyManager.uploadSpeedHistory.isEmpty {
+                        TrafficSpeedChart(
+                            uploadData: proxyManager.uploadSpeedHistory,
+                            downloadData: proxyManager.downloadSpeedHistory
                         )
+                        .padding(.vertical, Theme.Spacing.sm)
+                    } else {
+                        // 占位图表
+                        VStack {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .font(.system(size: 32))
+                                .foregroundColor(Theme.Colors.tertiaryText.opacity(0.3))
+                            Text("启动代理后显示实时流量")
+                                .font(.system(size: 11))
+                                .foregroundColor(Theme.Colors.tertiaryText)
+                        }
+                        .frame(height: 120)
+                        .frame(maxWidth: .infinity)
+                    }
+                    
+                    Divider()
+                    
+                    // 流量分布图
+                    if proxyManager.trafficStats.uploadBytes > 0 || proxyManager.trafficStats.downloadBytes > 0 {
+                        TrafficDistributionChart(
+                            upload: proxyManager.trafficStats.uploadBytes,
+                            download: proxyManager.trafficStats.downloadBytes
+                        )
+                        .padding(.vertical, Theme.Spacing.sm)
+                    } else {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("总上传")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Theme.Colors.tertiaryText)
+                                Text("0 B")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 4) {
+                                Text("总下载")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Theme.Colors.tertiaryText)
+                                Text("0 B")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(Theme.Colors.secondaryText)
+                            }
+                        }
                     }
                 }
             }
         }
     }
-
-    // MARK: - Current Node Card
-
-    private var currentNodeCard: some View {
+    
+    // MARK: - Network Status Card
+    
+    private var networkStatusCard: some View {
         CardView {
-            VStack(spacing: Theme.Spacing.lg) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 HStack {
-                    Text("当前节点")
-                        .font(Theme.Typography.title3)
-                        .foregroundColor(Theme.Colors.primaryText)
-
+                    Image(systemName: "network")
+                        .font(.system(size: 16))
+                        .foregroundColor(Theme.Colors.accent)
+                    Text("网络状态")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Theme.Colors.secondaryText)
                     Spacer()
                 }
-
+                
+                VStack(spacing: Theme.Spacing.sm) {
+                    // 系统代理
+                    statusRow(
+                        icon: "globe",
+                        title: "系统代理",
+                        value: proxyManager.isSystemProxyEnabled ? "已启用" : "未启用",
+                        valueColor: proxyManager.isSystemProxyEnabled ? Color.green : Theme.Colors.tertiaryText
+                    )
+                    
+                    // 本地监听
+                    statusRow(
+                        icon: "antenna.radiowaves.left.and.right",
+                        title: "本地监听",
+                        value: "127.0.0.1:7890",
+                        valueColor: Theme.Colors.secondaryText
+                    )
+                    
+                    // 代理模式
+                    statusRow(
+                        icon: "arrow.triangle.branch",
+                        title: "代理模式",
+                        value: proxyManager.proxyMode.rawValue,
+                        valueColor: Theme.Colors.accent
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - Control Panel Card
+    
+    private var controlPanelCard: some View {
+        CardView {
+            VStack(spacing: Theme.Spacing.md) {
+                // 当前节点信息
                 if let node = proxyManager.selectedNode {
-                    VStack(spacing: Theme.Spacing.md) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("当前节点")
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.Colors.tertiaryText)
+                        
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(node.name)
-                                    .font(Theme.Typography.title2)
+                                    .font(.system(size: 15, weight: .semibold))
                                     .foregroundColor(Theme.Colors.primaryText)
-
-                                HStack(spacing: Theme.Spacing.sm) {
+                                
+                                HStack(spacing: 6) {
                                     Text(node.type.displayName)
-                                        .font(Theme.Typography.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Theme.Colors.accent.opacity(0.1))
+                                        .font(.system(size: 10, weight: .medium))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Theme.Colors.accent.opacity(0.15))
                                         .foregroundColor(Theme.Colors.accent)
-                                        .cornerRadius(4)
-
+                                        .cornerRadius(3)
+                                    
                                     if let latency = node.latency {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "antenna.radiowaves.left.and.right")
-                                                .font(.system(size: 10))
+                                        HStack(spacing: 2) {
+                                            Circle()
+                                                .fill(latencyColor(for: latency))
+                                                .frame(width: 4, height: 4)
                                             Text("\(latency)ms")
-                                                .font(Theme.Typography.caption)
+                                                .font(.system(size: 10))
+                                                .foregroundColor(Theme.Colors.tertiaryText)
                                         }
-                                        .foregroundColor(latencyColor(for: latency))
                                     }
                                 }
                             }
-
+                            
                             Spacer()
                         }
-
-                        Divider()
-
-                        HStack {
-                            Text("\(node.server):\(node.port)")
-                                .font(Theme.Typography.callout)
-                                .foregroundColor(Theme.Colors.secondaryText)
-
-                            Spacer()
-                        }
-                    }
-                } else {
-                    HStack {
-                        Text("未选择节点")
-                            .font(Theme.Typography.body)
+                        
+                        Text("\(node.server):\(node.port)")
+                            .font(.system(size: 11))
                             .foregroundColor(Theme.Colors.tertiaryText)
-
-                        Spacer()
                     }
+                    .padding(.bottom, Theme.Spacing.sm)
+                }
+                
+                Divider()
+                
+                // 控制按钮
+                HStack(spacing: Theme.Spacing.sm) {
+                    // 主按钮 - 启动/停止
+                    Button(action: {
+                        withAnimation(Theme.Animation.standard) {
+                            proxyManager.toggleProxy()
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: proxyManager.isRunning ? "stop.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 16))
+                            Text(proxyManager.isRunning ? "停止" : "启动")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(proxyManager.isRunning ? Color.red.opacity(0.9) : Theme.Colors.accent)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    // 系统代理开关
+                    Button(action: {
+                        withAnimation(Theme.Animation.standard) {
+                            proxyManager.toggleSystemProxy()
+                        }
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: proxyManager.isSystemProxyEnabled ? "network" : "network.slash")
+                                .font(.system(size: 16))
+                            Text(proxyManager.isSystemProxyEnabled ? "关闭" : "开启")
+                                .font(.system(size: 10))
+                        }
+                        .frame(width: 70)
+                        .padding(.vertical, 8)
+                        .background(
+                            proxyManager.isRunning
+                                ? (proxyManager.isSystemProxyEnabled 
+                                    ? Color.green.opacity(0.15)
+                                    : Theme.Colors.cardBackground)
+                                : Theme.Colors.cardBackground.opacity(0.5)
+                        )
+                        .foregroundColor(
+                            proxyManager.isRunning
+                                ? (proxyManager.isSystemProxyEnabled ? Color.green : Theme.Colors.secondaryText)
+                                : Theme.Colors.tertiaryText
+                        )
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    proxyManager.isSystemProxyEnabled ? Color.green.opacity(0.3) : Color.clear,
+                                    lineWidth: 1
+                                )
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!proxyManager.isRunning)
                 }
             }
+        }
+    }
+    
+    // MARK: - Helper Views
+    
+    private func statusRow(icon: String, title: String, value: String, valueColor: Color) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundColor(Theme.Colors.tertiaryText)
+                .frame(width: 16)
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundColor(Theme.Colors.secondaryText)
+            Spacer()
+            Text(value)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(valueColor)
         }
     }
 
     private func latencyColor(for latency: Int) -> Color {
         switch latency {
-        case 0..<100: return Theme.Colors.statusActive
-        case 100..<300: return Theme.Colors.statusWarning
-        default: return Theme.Colors.statusError
+        case 0..<100: return Color.green
+        case 100..<300: return Color.orange
+        default: return Color.red
         }
-    }
-}
-
-// MARK: - Mode Button
-
-private struct ModeButton: View {
-    let mode: ProxyMode
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? Theme.Colors.accent : Theme.Colors.cardBackground)
-                        .frame(width: 48, height: 48)
-
-                    Image(systemName: mode.icon)
-                        .font(.system(size: 20))
-                        .foregroundColor(isSelected ? .white : Theme.Colors.secondaryText)
-                }
-
-                Text(mode.rawValue)
-                    .font(Theme.Typography.caption)
-                    .foregroundColor(isSelected ? Theme.Colors.accent : Theme.Colors.secondaryText)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
     }
 }
 
 #Preview {
     OverviewView()
         .environmentObject(ProxyManager.shared)
-        .frame(width: 800, height: 700)
+        .frame(width: 900, height: 700)
 }

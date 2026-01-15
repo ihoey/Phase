@@ -5,6 +5,7 @@ enum NavigationItem: String, CaseIterable, Identifiable {
     case overview = "总览"
     case nodes = "节点"
     case subscriptions = "订阅"
+    case traffic = "流量"
     case rules = "规则"
     case logs = "日志"
     case settings = "设置"
@@ -16,6 +17,7 @@ enum NavigationItem: String, CaseIterable, Identifiable {
         case .overview: return "gauge.with.dots.needle.67percent"
         case .nodes: return "network"
         case .subscriptions: return "link"
+        case .traffic: return "chart.bar.fill"
         case .rules: return "list.bullet.rectangle"
         case .logs: return "doc.text"
         case .settings: return "gearshape"
@@ -96,6 +98,7 @@ struct Sidebar: View {
 
 struct DetailView: View {
     let selectedItem: NavigationItem
+    @StateObject private var trafficTracker = TrafficTracker()
 
     var body: some View {
         Group {
@@ -106,6 +109,15 @@ struct DetailView: View {
                 NodesView()
             case .subscriptions:
                 SubscriptionView()
+            case .traffic:
+                TrafficDetailView()
+                    .environmentObject(trafficTracker)
+                    .onAppear {
+                        // 添加模拟数据用于测试
+                        if trafficTracker.processes.isEmpty {
+                            trafficTracker.addMockData()
+                        }
+                    }
             case .rules:
                 RulesView()
             case .logs:
