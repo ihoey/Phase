@@ -123,69 +123,80 @@ struct OverviewView: View {
     // MARK: - 网络状态卡片
 
     private var networkStatusCard: some View {
-        ModernCard(icon: "globe", title: "网络状态", iconColor: .green) {
-            VStack(spacing: 16) {
-                // 延迟指标
+        ModernCard(
+            icon: "globe",
+            title: "网络状态",
+            iconColor: .green,
+            trailing: {
+                // 测速按钮
+                Button(action: {}) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bolt.horizontal")
+                            .font(.system(size: 10))
+                        Text("测速")
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        ) {
+            VStack(spacing: 0) {
+                // 延迟指标 - 带信号强度
                 HStack(spacing: 0) {
-                    LatencyMetric(
+                    EnhancedLatencyMetric(
                         icon: "globe.americas",
                         label: "互联网",
-                        latency: proxyManager.isRunning ? 235 : nil
+                        latency: proxyManager.isRunning ? 45 : nil
                     )
 
                     Divider()
-                        .frame(height: 40)
-                        .padding(.horizontal, 12)
+                        .frame(height: 50)
+                        .padding(.horizontal, 8)
 
-                    LatencyMetric(
+                    EnhancedLatencyMetric(
                         icon: "server.rack",
                         label: "DNS",
-                        latency: proxyManager.isRunning ? 754 : nil
+                        latency: proxyManager.isRunning ? 28 : nil
                     )
 
                     Divider()
-                        .frame(height: 40)
-                        .padding(.horizontal, 12)
+                        .frame(height: 50)
+                        .padding(.horizontal, 8)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "point.3.connected.trianglepath.dotted")
-                                .font(.system(size: 10))
-                                .foregroundColor(.secondary)
-                            Text("路由")
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                        }
-                        Text("-")
-                            .font(.system(size: 20, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    EnhancedLatencyMetric(
+                        icon: "point.3.connected.trianglepath.dotted",
+                        label: "路由",
+                        latency: proxyManager.isRunning ? 12 : nil
+                    )
                 }
+
+                Spacer()
+                    .frame(height: 16)
 
                 Divider()
 
-                // 网络信息
-                HStack(spacing: 24) {
-                    StatusBadge(
+                Spacer()
+                    .frame(height: 12)
+
+                // 网络信息 - 胶囊徽章
+                HStack(spacing: 8) {
+                    NetworkInfoPill(
                         icon: "wifi",
-                        label: "网络",
-                        value: "Ethernet",
-                        isActive: true
+                        label: "WiFi",
+                        isConnected: true
                     )
 
-                    StatusBadge(
-                        icon: "network",
-                        label: "本地IP",
-                        value: getLocalIP(),
-                        isActive: true
+                    NetworkInfoPill(
+                        icon: "location.fill",
+                        label: getLocalIP(),
+                        isConnected: true
                     )
 
-                    StatusBadge(
-                        icon: "globe.asia.australia",
-                        label: "代理IP",
-                        value: proxyManager.isRunning ? "Hidden" : "-",
-                        isActive: proxyManager.isRunning
+                    NetworkInfoPill(
+                        icon: proxyManager.isRunning ? "checkmark.shield.fill" : "shield.slash",
+                        label: proxyManager.isRunning ? "代理已启用" : "代理未启用",
+                        isConnected: proxyManager.isRunning
                     )
                 }
             }
@@ -347,104 +358,99 @@ struct OverviewView: View {
 
     private var trafficSummaryCard: some View {
         ModernCard(
-            icon: "clock.arrow.circlepath",
+            icon: "chart.pie.fill",
             title: "流量汇总",
             iconColor: .cyan,
             trailing: {
-                Button(action: {}) {
-                    Image(systemName: "arrow.up.forward.square")
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
+                // 时间段选择器 - 移到右上角
+                HStack(spacing: 0) {
+                    ForEach(TrafficPeriod.allCases, id: \.self) { period in
+                        Button(action: { selectedTrafficPeriod = period }) {
+                            Text(period.rawValue)
+                                .font(.system(size: 10, weight: .medium))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(
+                                    selectedTrafficPeriod == period
+                                        ? Color.accentColor
+                                        : Color.clear
+                                )
+                                .foregroundColor(
+                                    selectedTrafficPeriod == period
+                                        ? .white
+                                        : .secondary
+                                )
+                                .cornerRadius(4)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(2)
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(6)
             }
         ) {
-            HStack(spacing: 24) {
-                // 左侧：时间段选择 + 环形图
-                VStack(spacing: 16) {
-                    // 时间段选择器
-                    HStack(spacing: 0) {
-                        ForEach(TrafficPeriod.allCases, id: \.self) { period in
-                            Button(action: { selectedTrafficPeriod = period }) {
-                                Text(period.rawValue)
-                                    .font(.system(size: 12, weight: .medium))
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        selectedTrafficPeriod == period
-                                            ? Color.accentColor
-                                            : Color.clear
-                                    )
-                                    .foregroundColor(
-                                        selectedTrafficPeriod == period
-                                            ? .white
-                                            : .secondary
-                                    )
-                                    .cornerRadius(6)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(3)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+            HStack(spacing: 20) {
+                // 左侧：环形图 + 统计
+                HStack(spacing: 20) {
+                    // 增强环形图
+                    EnhancedTrafficRing(
+                        upload: proxyManager.trafficStats.uploadBytes,
+                        download: proxyManager.trafficStats.downloadBytes
+                    )
+                    .frame(width: 120, height: 120)
 
-                    HStack(spacing: 24) {
-                        // 环形进度图
-                        TrafficRingChart(
-                            upload: proxyManager.trafficStats.uploadBytes,
-                            download: proxyManager.trafficStats.downloadBytes
+                    // 流量详情
+                    VStack(alignment: .leading, spacing: 12) {
+                        // 上传
+                        TrafficDetailRow(
+                            icon: "arrow.up.circle.fill",
+                            label: "上传",
+                            value: formatBytes(proxyManager.trafficStats.uploadBytes),
+                            color: Theme.Colors.chartUpload,
+                            percentage: uploadPercentage
                         )
-                        .frame(width: 140, height: 140)
 
-                        // 流量统计
-                        VStack(alignment: .leading, spacing: 12) {
-                            TrafficStatRow(
-                                icon: "arrow.up.circle.fill",
-                                label: "上传",
-                                value: formatBytes(proxyManager.trafficStats.uploadBytes),
-                                color: Theme.Colors.chartUpload
-                            )
+                        // 下载
+                        TrafficDetailRow(
+                            icon: "arrow.down.circle.fill",
+                            label: "下载",
+                            value: formatBytes(proxyManager.trafficStats.downloadBytes),
+                            color: Theme.Colors.chartDownload,
+                            percentage: downloadPercentage
+                        )
 
-                            TrafficStatRow(
-                                icon: "arrow.down.circle.fill",
-                                label: "下载",
-                                value: formatBytes(proxyManager.trafficStats.downloadBytes),
-                                color: Theme.Colors.chartDownload
-                            )
+                        Divider()
+                            .padding(.vertical, 4)
 
-                            Divider()
-
-                            // 直接连接与策略的流量比例
-                            TrafficRatioBar(
-                                directBytes: Int64(
-                                    Double(
-                                        proxyManager.trafficStats.uploadBytes
-                                            + proxyManager.trafficStats.downloadBytes) * 0.05),
-                                proxyBytes: Int64(
-                                    Double(
-                                        proxyManager.trafficStats.uploadBytes
-                                            + proxyManager.trafficStats.downloadBytes) * 0.95)
-                            )
+                        // 总计
+                        HStack {
+                            Text("总计")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Text(formatBytes(proxyManager.trafficStats.uploadBytes + proxyManager.trafficStats.downloadBytes))
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
                         }
                     }
+                    .frame(width: 140)
                 }
-                .frame(maxWidth: .infinity)
 
                 Divider()
-                    .frame(height: 140)
+                    .frame(height: 100)
 
                 // 右侧：排行榜
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     // 排行榜标题和类型选择
                     HStack {
                         HStack(spacing: 4) {
-                            Image(systemName: "list.number")
-                                .font(.system(size: 12))
-                            Text("排行榜")
-                                .font(.system(size: 13, weight: .medium))
+                            Image(systemName: "trophy.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange)
+                            Text("流量排行")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
                         }
-                        .foregroundColor(.secondary)
 
                         Spacer()
 
@@ -453,9 +459,9 @@ struct OverviewView: View {
                             ForEach(RankType.allCases, id: \.self) { type in
                                 Button(action: { selectedRankType = type }) {
                                     Text(type.rawValue)
-                                        .font(.system(size: 11))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 4)
+                                        .font(.system(size: 10))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
                                         .background(
                                             selectedRankType == type
                                                 ? Color.gray.opacity(0.2)
@@ -475,16 +481,19 @@ struct OverviewView: View {
 
                     if proxyManager.isRunning {
                         // 排行列表
-                        VStack(spacing: 8) {
-                            RankRow(rank: 1, name: "DIRECT", traffic: "12.5 MB")
-                            RankRow(rank: 2, name: "Proxy", traffic: "8.2 MB")
-                            RankRow(rank: 3, name: "Reject", traffic: "0 B")
+                        VStack(spacing: 6) {
+                            EnhancedRankRow(rank: 1, name: "DIRECT", traffic: "12.5 MB", maxTraffic: 12.5, color: .blue)
+                            EnhancedRankRow(rank: 2, name: "Proxy", traffic: "8.2 MB", maxTraffic: 12.5, color: .purple)
+                            EnhancedRankRow(rank: 3, name: "Reject", traffic: "0.5 MB", maxTraffic: 12.5, color: .gray)
                         }
                     } else {
                         VStack {
                             Spacer()
-                            Text("-")
-                                .font(.system(size: 16))
+                            Image(systemName: "chart.bar.xaxis")
+                                .font(.system(size: 24))
+                                .foregroundColor(.secondary.opacity(0.5))
+                            Text("暂无数据")
+                                .font(.system(size: 11))
                                 .foregroundColor(.secondary)
                             Spacer()
                         }
@@ -494,6 +503,19 @@ struct OverviewView: View {
                 .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    // 计算上传下载百分比
+    private var uploadPercentage: Double {
+        let total = proxyManager.trafficStats.uploadBytes + proxyManager.trafficStats.downloadBytes
+        guard total > 0 else { return 0 }
+        return Double(proxyManager.trafficStats.uploadBytes) / Double(total) * 100
+    }
+
+    private var downloadPercentage: Double {
+        let total = proxyManager.trafficStats.uploadBytes + proxyManager.trafficStats.downloadBytes
+        guard total > 0 else { return 0 }
+        return Double(proxyManager.trafficStats.downloadBytes) / Double(total) * 100
     }
 
     // MARK: - Helpers
@@ -653,6 +675,119 @@ struct LatencyMetric: View {
         case 100..<300: return Theme.Colors.statusWarning
         default: return Theme.Colors.statusError
         }
+    }
+}
+
+// MARK: - 增强延迟指标（带信号强度）
+
+struct EnhancedLatencyMetric: View {
+    let icon: String
+    let label: String
+    let latency: Int?
+
+    @State private var isAnimating = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 顶部：图标和标签
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                Text(label)
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+
+            // 中间：延迟数值
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                if let latency = latency {
+                    Text("\(latency)")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(latencyColor(latency))
+                        .contentTransition(.numericText())
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: latency)
+                    Text("ms")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(latencyColor(latency).opacity(0.7))
+                } else {
+                    Text("-")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            // 底部：信号强度条
+            HStack(spacing: 2) {
+                ForEach(0..<4) { index in
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(signalBarColor(for: index))
+                        .frame(width: 6, height: 4 + CGFloat(index) * 3)
+                }
+            }
+            .frame(height: 16, alignment: .bottom)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var signalStrength: Int {
+        guard let latency = latency else { return 0 }
+        switch latency {
+        case 0..<50: return 4
+        case 50..<100: return 3
+        case 100..<200: return 2
+        case 200..<500: return 1
+        default: return 0
+        }
+    }
+
+    private func signalBarColor(for index: Int) -> Color {
+        if index < signalStrength {
+            return latencyColor(latency ?? 999)
+        }
+        return Color.gray.opacity(0.2)
+    }
+
+    private func latencyColor(_ latency: Int) -> Color {
+        switch latency {
+        case 0..<100: return Theme.Colors.statusActive
+        case 100..<300: return Theme.Colors.statusWarning
+        default: return Theme.Colors.statusError
+        }
+    }
+}
+
+// MARK: - 网络信息胶囊
+
+struct NetworkInfoPill: View {
+    let icon: String
+    let label: String
+    let isConnected: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+                .foregroundColor(isConnected ? Theme.Colors.statusActive : .secondary)
+                .symbolRenderingMode(.hierarchical)
+
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(isConnected ? .primary : .secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(isConnected ? Theme.Colors.statusActive.opacity(0.1) : Color.gray.opacity(0.1))
+        )
+        .overlay(
+            Capsule()
+                .stroke(
+                    isConnected ? Theme.Colors.statusActive.opacity(0.2) : Color.gray.opacity(0.15),
+                    lineWidth: 1
+                )
+        )
     }
 }
 
@@ -1795,6 +1930,198 @@ struct RankRow: View {
             Text(traffic)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - 增强环形图
+
+struct EnhancedTrafficRing: View {
+    let upload: Int64
+    let download: Int64
+
+    private var total: Int64 { upload + download }
+    private var uploadRatio: Double {
+        guard total > 0 else { return 0 }
+        return Double(upload) / Double(total)
+    }
+
+    var body: some View {
+        ZStack {
+            // 底层灰色环
+            Circle()
+                .stroke(Color.gray.opacity(0.15), lineWidth: 10)
+
+            // 下载环（蓝色）
+            Circle()
+                .trim(from: 0, to: total > 0 ? 1.0 : 0)
+                .stroke(
+                    LinearGradient(
+                        colors: [Theme.Colors.chartDownload, Theme.Colors.chartDownload.opacity(0.7)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+
+            // 上传环（青色）叠加
+            Circle()
+                .trim(from: 0, to: uploadRatio)
+                .stroke(
+                    LinearGradient(
+                        colors: [Theme.Colors.chartUpload, Theme.Colors.chartUpload.opacity(0.7)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+
+            // 中心信息
+            VStack(spacing: 2) {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 16))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Theme.Colors.chartUpload, Theme.Colors.chartDownload],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                Text(formatBytes(total))
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+            }
+        }
+        .animation(.spring(response: 0.6, dampingFraction: 0.8), value: total)
+    }
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        if bytes == 0 { return "0 KB" }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .binary
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
+// MARK: - 流量详情行
+
+struct TrafficDetailRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+    let percentage: Double
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // 图标
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(color)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(label)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    Text(String(format: "%.1f%%", percentage))
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(color.opacity(0.8))
+                }
+
+                Text(value)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+            }
+        }
+    }
+}
+
+// MARK: - 增强排行行
+
+struct EnhancedRankRow: View {
+    let rank: Int
+    let name: String
+    let traffic: String
+    let maxTraffic: Double
+    let color: Color
+
+    private var trafficValue: Double {
+        // 简单解析 traffic 字符串
+        let number = traffic.components(separatedBy: " ").first ?? "0"
+        return Double(number) ?? 0
+    }
+
+    private var progress: Double {
+        guard maxTraffic > 0 else { return 0 }
+        return trafficValue / maxTraffic
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            // 排名徽章
+            ZStack {
+                Circle()
+                    .fill(rankColor.opacity(0.15))
+                    .frame(width: 20, height: 20)
+
+                if rank == 1 {
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(.orange)
+                } else {
+                    Text("\(rank)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(rankColor)
+                }
+            }
+
+            // 名称和进度条
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text(name)
+                        .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    Text(traffic)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
+
+                // 进度条
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Color.gray.opacity(0.1))
+
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(
+                                LinearGradient(
+                                    colors: [color.opacity(0.6), color],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: geometry.size.width * progress)
+                    }
+                }
+                .frame(height: 4)
+            }
+        }
+    }
+
+    private var rankColor: Color {
+        switch rank {
+        case 1: return .orange
+        case 2: return .gray
+        case 3: return .brown
+        default: return .secondary
         }
     }
 }
