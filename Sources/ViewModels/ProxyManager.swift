@@ -14,7 +14,8 @@ class ProxyManager: ObservableObject {
     @Published var isSystemProxyEnabled: Bool = false
     @Published var subscriptionNodes: [UUID: [ProxyNode]] = [:]  // 订阅ID -> 节点列表
     @Published var proxyMode: ProxyMode = .rule  // 代理模式
-    
+    @Published var startTime: Date?  // 代理启动时间
+
     // 流量历史数据（用于图表）
     @Published var uploadSpeedHistory: [TrafficDataPoint] = []
     @Published var downloadSpeedHistory: [TrafficDataPoint] = []
@@ -104,6 +105,8 @@ class ProxyManager: ObservableObject {
         do {
             try singBoxService.start(config: config)
 
+            self.startTime = Date()
+
             // 启动流量统计
             startTrafficMonitoring()
         } catch {
@@ -117,6 +120,8 @@ class ProxyManager: ObservableObject {
 
         // 停止 sing-box
         singBoxService.stop()
+
+        self.startTime = nil
 
         // 停止流量统计
         stopTrafficMonitoring()
@@ -167,28 +172,30 @@ class ProxyManager: ObservableObject {
         lastTrafficUpdateTime = Date()
         uploadSpeedHistory.removeAll()
         downloadSpeedHistory.removeAll()
-        
+
         trafficTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
                 // TODO: 从 sing-box 获取真实流量数据
                 let newUpload = Int64.random(in: 1000...50000)
                 let newDownload = Int64.random(in: 5000...200000)
-                
+
                 self.trafficStats.uploadBytes += newUpload
                 self.trafficStats.downloadBytes += newDownload
-                
+
                 // 计算速率并添加到历史记录
                 let now = Date()
-                self.uploadSpeedHistory.append(TrafficDataPoint(
-                    timestamp: now,
-                    value: Double(newUpload)
-                ))
-                self.downloadSpeedHistory.append(TrafficDataPoint(
-                    timestamp: now,
-                    value: Double(newDownload)
-                ))
-                
+                self.uploadSpeedHistory.append(
+                    TrafficDataPoint(
+                        timestamp: now,
+                        value: Double(newUpload)
+                    ))
+                self.downloadSpeedHistory.append(
+                    TrafficDataPoint(
+                        timestamp: now,
+                        value: Double(newDownload)
+                    ))
+
                 // 保持历史记录在指定大小
                 if self.uploadSpeedHistory.count > self.maxHistoryPoints {
                     self.uploadSpeedHistory.removeFirst()
