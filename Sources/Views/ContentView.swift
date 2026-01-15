@@ -316,6 +316,8 @@ struct SidebarButton: View {
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(backgroundColor)

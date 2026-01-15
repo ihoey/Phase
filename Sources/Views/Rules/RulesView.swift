@@ -395,6 +395,8 @@ private struct RuleGroupCell: View {
                 }
             }
             .padding(Theme.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
                     .fill(
