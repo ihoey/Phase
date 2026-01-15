@@ -95,15 +95,30 @@ class SingBoxService {
     // MARK: - Private Methods
     
     private func singBoxBinaryPath() -> String? {
-        // 方案 1: 从 Resources 目录加载
+        // 方案 1: 开发环境 - Sources/Resources 目录
+        let currentDir = FileManager.default.currentDirectoryPath
+        let devPaths = [
+            currentDir + "/Sources/Resources/sing-box",
+            currentDir + "/.build/debug/Phase_Phase.resources/sing-box",
+        ]
+        
+        for path in devPaths {
+            if FileManager.default.fileExists(atPath: path) {
+                print("✅ 找到 sing-box: \(path)")
+                return path
+            }
+        }
+        
+        // 方案 2: 从 Bundle Resources 目录加载（发布版本）
         if let resourcePath = Bundle.main.resourcePath {
             let binaryPath = resourcePath + "/sing-box"
             if FileManager.default.fileExists(atPath: binaryPath) {
+                print("✅ 找到 sing-box: \(binaryPath)")
                 return binaryPath
             }
         }
         
-        // 方案 2: 从系统路径查找（如果用户已安装）
+        // 方案 3: 从系统路径查找（如果用户已安装）
         let systemPaths = [
             "/usr/local/bin/sing-box",
             "/opt/homebrew/bin/sing-box",
@@ -112,9 +127,16 @@ class SingBoxService {
         
         for path in systemPaths {
             if FileManager.default.fileExists(atPath: path) {
+                print("✅ 找到 sing-box: \(path)")
                 return path
             }
         }
+        
+        print("❌ 未找到 sing-box 二进制文件")
+        print("💡 请将 sing-box 放置到以下任一位置：")
+        print("   - \(currentDir)/Sources/Resources/sing-box")
+        print("   - /usr/local/bin/sing-box")
+        print("   - /opt/homebrew/bin/sing-box")
         
         return nil
     }
