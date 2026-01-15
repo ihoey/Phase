@@ -203,7 +203,8 @@ struct OverviewView: View {
                     SpeedMetricView(
                         icon: "arrow.up.circle.fill",
                         label: "上传",
-                        speed: proxyManager.isRunning ? proxyManager.uploadSpeedHistory.last?.value ?? 0 : 0,
+                        speed: proxyManager.isRunning
+                            ? proxyManager.uploadSpeedHistory.last?.value ?? 0 : 0,
                         peakSpeed: proxyManager.uploadSpeedHistory.map { $0.value }.max() ?? 0,
                         color: Theme.Colors.chartUpload
                     )
@@ -216,7 +217,8 @@ struct OverviewView: View {
                     SpeedMetricView(
                         icon: "arrow.down.circle.fill",
                         label: "下载",
-                        speed: proxyManager.isRunning ? proxyManager.downloadSpeedHistory.last?.value ?? 0 : 0,
+                        speed: proxyManager.isRunning
+                            ? proxyManager.downloadSpeedHistory.last?.value ?? 0 : 0,
                         peakSpeed: proxyManager.downloadSpeedHistory.map { $0.value }.max() ?? 0,
                         color: Theme.Colors.chartDownload
                     )
@@ -245,17 +247,21 @@ struct OverviewView: View {
                         bytes: proxyManager.trafficStats.downloadBytes,
                         color: Theme.Colors.chartDownload
                     )
-                    
+
                     Spacer()
-                    
+
                     // 总计
                     HStack(spacing: 4) {
                         Image(systemName: "sum")
                             .font(.system(size: 10))
                             .foregroundColor(.secondary)
-                        Text(formatBytes(proxyManager.trafficStats.uploadBytes + proxyManager.trafficStats.downloadBytes))
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
+                        Text(
+                            formatBytes(
+                                proxyManager.trafficStats.uploadBytes
+                                    + proxyManager.trafficStats.downloadBytes)
+                        )
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
                     }
                 }
             }
@@ -278,20 +284,61 @@ struct OverviewView: View {
                 .buttonStyle(.plain)
             }
         ) {
-            HStack(alignment: .bottom, spacing: 0) {
-                // 日均统计
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("日均")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                    Text("41.6 MB")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                }
-                .frame(width: 90, alignment: .leading)
+            HStack(alignment: .top, spacing: 20) {
+                // 左侧统计区域
+                VStack(alignment: .leading, spacing: 0) {
+                    // 日均统计
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("日均流量")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
 
-                // 柱状图
-                WeeklyBarChart()
-                    .frame(maxWidth: .infinity)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("41.6")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                            Text("MB")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        }
+
+                        // 环比变化胶囊
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 9, weight: .bold))
+                            Text("+12%")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(Theme.Colors.statusActive.opacity(0.15))
+                        )
+                        .foregroundColor(Theme.Colors.statusActive)
+                    }
+
+                    Spacer()
+
+                    // 本周总计
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("本周总计")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            Text("291")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                            Text("MB")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .frame(width: 90)
+
+                // 柱状图 - 填充剩余空间
+                PremiumWeeklyChart()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
     }
@@ -993,66 +1040,179 @@ struct TrafficSlider: View {
     }
 }
 
-// MARK: - 7天柱状图 (带Hover效果)
+// MARK: - 高级 7 天柱状图
 
-struct WeeklyBarChart: View {
-    let data: [(day: String, value: Double)] = [
-        ("周四", 25), ("周三", 38), ("周二", 42),
-        ("周一", 291.5), ("周日", 48), ("周六", 35), ("周五", 45),
+struct PremiumWeeklyChart: View {
+    // 数据：从旧到新（最右侧是今天）
+    let data: [(day: String, shortDay: String, value: Double, isToday: Bool)] = [
+        ("周四", "四", 25, false),
+        ("周五", "五", 45, false),
+        ("周六", "六", 35, false),
+        ("周日", "日", 48, false),
+        ("周一", "一", 85, false),
+        ("周二", "二", 42, false),
+        ("周三", "三", 38, true),  // 今天
     ]
+
     @State private var hoveredIndex: Int? = nil
+    @State private var isAnimated = false
 
     var maxValue: Double {
         data.map { $0.value }.max() ?? 1
     }
 
+    var avgValue: Double {
+        data.map { $0.value }.reduce(0, +) / Double(data.count)
+    }
+
+    // 找出最大值索引
+    var maxIndex: Int {
+        data.enumerated().max(by: { $0.element.value < $1.element.value })?.offset ?? 0
+    }
+
     var body: some View {
-        HStack(alignment: .bottom, spacing: 6) {
-            ForEach(Array(data.enumerated()), id: \.offset) { index, item in
-                VStack(spacing: 4) {
-                    ZStack(alignment: .top) {
-                        // 悬停提示
-                        if hoveredIndex == index {
-                            Text(String(format: "%.1f MB", item.value))
-                                .font(.system(size: 9, weight: .semibold))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Color.orange)
-                                .foregroundColor(.white)
-                                .cornerRadius(4)
-                                .offset(y: -24)
-                                .transition(.opacity.combined(with: .scale))
-                        }
+        GeometryReader { geometry in
+            let spacing: CGFloat = 10
+            let barWidth: CGFloat = (geometry.size.width - CGFloat(data.count - 1) * spacing) / CGFloat(data.count)
+            let chartHeight: CGFloat = geometry.size.height - 24  // 留给底部标签
 
-                        // 柱状图
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(
-                                hoveredIndex == index
-                                    ? LinearGradient(
-                                        colors: [Color.orange.opacity(0.8), Color.orange],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                    : LinearGradient(
-                                        colors: [Color.gray.opacity(0.4), Color.gray.opacity(0.6)],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                            )
-                            .frame(width: 22, height: max(8, CGFloat(item.value / maxValue) * 80))
-                    }
-
-                    Text(item.day)
-                        .font(.system(size: 9))
-                        .foregroundColor(hoveredIndex == index ? .orange : .secondary)
+            ZStack {
+                // 平均线
+                let avgY = chartHeight * (1 - CGFloat(avgValue / maxValue) * 0.88)
+                HStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color.orange.opacity(0.3))
+                        .frame(height: 1)
                 }
-                .onHover { isHovered in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        hoveredIndex = isHovered ? index : nil
+                .position(x: geometry.size.width / 2, y: avgY)
+
+                // 柱状图
+                HStack(alignment: .bottom, spacing: spacing) {
+                    ForEach(Array(data.enumerated()), id: \.offset) { index, item in
+                        VStack(spacing: 6) {
+                            // 柱状容器
+                            ZStack(alignment: .bottom) {
+                                // 背景柱
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color.gray.opacity(0.08), Color.gray.opacity(0.15)],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                    .frame(height: chartHeight * 0.88)
+
+                                // 数据柱
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: barColors(for: item, at: index),
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                    .frame(
+                                        height: isAnimated
+                                            ? max(8, chartHeight * 0.88 * CGFloat(item.value / maxValue))
+                                            : 8
+                                    )
+                                    .shadow(
+                                        color: item.isToday ? Color.orange.opacity(0.4) : Color.clear,
+                                        radius: 6,
+                                        y: 2
+                                    )
+                                    // 今天发光边框
+                                    .overlay(
+                                        Group {
+                                            if item.isToday {
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .stroke(
+                                                        LinearGradient(
+                                                            colors: [Color.orange, Color.orange.opacity(0.5)],
+                                                            startPoint: .top,
+                                                            endPoint: .bottom
+                                                        ),
+                                                        lineWidth: 2
+                                                    )
+                                            }
+                                        }
+                                    )
+                                    // 最高值标记
+                                    .overlay(alignment: .top) {
+                                        if index == maxIndex && !item.isToday {
+                                            Image(systemName: "crown.fill")
+                                                .font(.system(size: 8))
+                                                .foregroundColor(.orange.opacity(0.6))
+                                                .offset(y: -12)
+                                        }
+                                    }
+                            }
+                            .frame(width: barWidth)
+                            // Hover 显示数值 - 简洁版
+                            .overlay(alignment: .top) {
+                                if hoveredIndex == index {
+                                    Text(String(format: "%.0f MB", item.value))
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundColor(.orange)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .fill(Color(nsColor: .windowBackgroundColor))
+                                                .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
+                                        )
+                                        .offset(y: -18)
+                                        .transition(.opacity)
+                                }
+                            }
+
+                            // 日期标签
+                            Text(item.shortDay)
+                                .font(.system(size: 11, weight: item.isToday ? .bold : .medium))
+                                .foregroundColor(item.isToday ? .orange : (hoveredIndex == index ? .primary : .secondary))
+                        }
+                        .scaleEffect(hoveredIndex == index ? 1.03 : 1.0)
+                        .animation(.easeInOut(duration: 0.15), value: hoveredIndex)
+                        .onHover { isHovered in
+                            withAnimation(.easeInOut(duration: 0.1)) {
+                                hoveredIndex = isHovered ? index : nil
+                            }
+                        }
                     }
                 }
             }
+            .onAppear {
+                withAnimation(.spring(response: 0.8, dampingFraction: 0.6).delay(0.1)) {
+                    isAnimated = true
+                }
+            }
         }
+    }
+
+    // 柱状颜色
+    private func barColors(for item: (day: String, shortDay: String, value: Double, isToday: Bool), at index: Int) -> [Color] {
+        if item.isToday {
+            return [Color.orange.opacity(0.8), Color.orange]
+        } else if hoveredIndex == index {
+            return [Color.orange.opacity(0.5), Color.orange.opacity(0.7)]
+        } else {
+            return [Color.gray.opacity(0.35), Color.gray.opacity(0.55)]
+        }
+    }
+}
+
+// MARK: - 旧版柱状图（保留兼容）
+
+struct EnhancedWeeklyBarChart: View {
+    var body: some View {
+        PremiumWeeklyChart()
+    }
+}
+
+struct WeeklyBarChart: View {
+    var body: some View {
+        PremiumWeeklyChart()
     }
 }
 
@@ -1117,7 +1277,7 @@ struct SpeedMetricView: View {
     let speed: Double
     let peakSpeed: Double
     let color: Color
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // 标签
@@ -1134,9 +1294,9 @@ struct SpeedMetricView: View {
                 Text(label)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
-                
+
                 Spacer()
-                
+
                 // 峰值显示在右上角，始终占位
                 HStack(spacing: 2) {
                     Image(systemName: "arrow.up.to.line")
@@ -1146,7 +1306,7 @@ struct SpeedMetricView: View {
                 }
                 .foregroundColor(.secondary.opacity(0.6))
             }
-            
+
             // 速度值
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(formatSpeedValue(speed))
@@ -1154,7 +1314,7 @@ struct SpeedMetricView: View {
                     .foregroundColor(color)
                     .contentTransition(.numericText())
                     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: speed)
-                
+
                 Text(formatSpeedUnit(speed))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundColor(color.opacity(0.7))
@@ -1162,7 +1322,7 @@ struct SpeedMetricView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     private func formatSpeedValue(_ bytes: Double) -> String {
         let kb = bytes / 1024
         if kb < 1 {
@@ -1173,12 +1333,12 @@ struct SpeedMetricView: View {
             return String(format: "%.2f", kb / 1024)
         }
     }
-    
+
     private func formatSpeedUnit(_ bytes: Double) -> String {
         let kb = bytes / 1024
         return kb < 1024 ? "KB/s" : "MB/s"
     }
-    
+
     private func formatSpeed(_ bytes: Double) -> String {
         let kb = bytes / 1024
         if kb < 1 {
@@ -1197,13 +1357,13 @@ struct EnhancedSpeedChart: View {
     let uploadHistory: [TrafficDataPoint]
     let downloadHistory: [TrafficDataPoint]
     let isRunning: Bool
-    
+
     var body: some View {
         GeometryReader { geometry in
             ZStack {
                 // 网格背景
                 ChartGridBackground(size: geometry.size)
-                
+
                 // 下载曲线
                 GlowingSpeedCurve(
                     data: downloadHistory,
@@ -1211,7 +1371,7 @@ struct EnhancedSpeedChart: View {
                     color: Theme.Colors.chartDownload,
                     showCurrentPoint: isRunning
                 )
-                
+
                 // 上传曲线
                 GlowingSpeedCurve(
                     data: uploadHistory,
@@ -1228,12 +1388,12 @@ struct EnhancedSpeedChart: View {
 
 struct ChartGridBackground: View {
     let size: CGSize
-    
+
     var body: some View {
         Canvas { context, size in
             let horizontalLines = 3
             let verticalLines = 6
-            
+
             // 水平线
             for i in 0...horizontalLines {
                 let y = size.height * CGFloat(i) / CGFloat(horizontalLines)
@@ -1242,7 +1402,7 @@ struct ChartGridBackground: View {
                 path.addLine(to: CGPoint(x: size.width, y: y))
                 context.stroke(path, with: .color(.gray.opacity(0.1)), lineWidth: 1)
             }
-            
+
             // 垂直线
             for i in 0...verticalLines {
                 let x = size.width * CGFloat(i) / CGFloat(verticalLines)
@@ -1262,19 +1422,19 @@ struct GlowingSpeedCurve: View {
     let size: CGSize
     let color: Color
     var showCurrentPoint: Bool = true
-    
+
     @State private var isAnimating = false
-    
+
     var body: some View {
         let points = normalizedPoints
-        
+
         ZStack {
             // 渐变填充区域
             Path { path in
                 guard points.count > 1 else { return }
                 path.move(to: CGPoint(x: points[0].x, y: size.height))
                 path.addLine(to: points[0])
-                
+
                 for i in 1..<points.count {
                     let control1 = CGPoint(
                         x: points[i - 1].x + (points[i].x - points[i - 1].x) / 2,
@@ -1286,7 +1446,7 @@ struct GlowingSpeedCurve: View {
                     )
                     path.addCurve(to: points[i], control1: control1, control2: control2)
                 }
-                
+
                 path.addLine(to: CGPoint(x: points.last!.x, y: size.height))
                 path.closeSubpath()
             }
@@ -1297,12 +1457,15 @@ struct GlowingSpeedCurve: View {
                     endPoint: .bottom
                 )
             )
-            
+
             // 发光效果 - 模糊层
             curvePath(points: points)
-                .stroke(color.opacity(0.5), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+                .stroke(
+                    color.opacity(0.5),
+                    style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
+                )
                 .blur(radius: 4)
-            
+
             // 主曲线
             curvePath(points: points)
                 .stroke(
@@ -1313,7 +1476,7 @@ struct GlowingSpeedCurve: View {
                     ),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round)
                 )
-            
+
             // 当前点高亮
             if showCurrentPoint, let lastPoint = points.last {
                 ZStack {
@@ -1323,12 +1486,12 @@ struct GlowingSpeedCurve: View {
                         .frame(width: 16, height: 16)
                         .scaleEffect(isAnimating ? 1.5 : 1)
                         .opacity(isAnimating ? 0 : 0.5)
-                    
+
                     // 外圈
                     Circle()
                         .fill(color.opacity(0.3))
                         .frame(width: 10, height: 10)
-                    
+
                     // 内圈
                     Circle()
                         .fill(color)
@@ -1343,12 +1506,12 @@ struct GlowingSpeedCurve: View {
             }
         }
     }
-    
+
     private func curvePath(points: [CGPoint]) -> Path {
         Path { path in
             guard points.count > 1 else { return }
             path.move(to: points[0])
-            
+
             for i in 1..<points.count {
                 let control1 = CGPoint(
                     x: points[i - 1].x + (points[i].x - points[i - 1].x) / 2,
@@ -1362,22 +1525,22 @@ struct GlowingSpeedCurve: View {
             }
         }
     }
-    
+
     private var normalizedPoints: [CGPoint] {
         guard !data.isEmpty else {
             return generateStaticWave()
         }
-        
+
         let maxValue = max(data.map { $0.value }.max() ?? 1, 1024)
         let count = data.count
-        
+
         return data.enumerated().map { index, point in
             let x = size.width * CGFloat(index) / CGFloat(max(count - 1, 1))
             let y = size.height - (size.height * CGFloat(point.value) / CGFloat(maxValue)) * 0.85
             return CGPoint(x: x, y: max(8, min(y, size.height - 8)))
         }
     }
-    
+
     private func generateStaticWave() -> [CGPoint] {
         let pointCount = 20
         return (0..<pointCount).map { i in
@@ -1396,26 +1559,26 @@ struct TrafficBadge: View {
     let label: String
     let bytes: Int64
     let color: Color
-    
+
     var body: some View {
         HStack(spacing: 6) {
             // 带颜色的圆点
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
-            
+
             // 标签
             Text(label)
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
-            
+
             // 数值
             Text(formatBytes(bytes))
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundColor(color)
         }
     }
-    
+
     private func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .binary
@@ -1431,14 +1594,14 @@ struct TrafficRingIndicator: View {
     let label: String
     let bytes: Int64
     let color: Color
-    
+
     // 假设最大值为 1GB 用于进度显示
     private let maxBytes: Int64 = 1024 * 1024 * 1024
-    
+
     private var progress: Double {
         min(Double(bytes) / Double(maxBytes), 1.0)
     }
-    
+
     var body: some View {
         HStack(spacing: 12) {
             // 环形进度
@@ -1447,7 +1610,7 @@ struct TrafficRingIndicator: View {
                 Circle()
                     .stroke(color.opacity(0.15), lineWidth: 4)
                     .frame(width: 36, height: 36)
-                
+
                 // 进度环
                 Circle()
                     .trim(from: 0, to: progress)
@@ -1462,19 +1625,19 @@ struct TrafficRingIndicator: View {
                     .frame(width: 36, height: 36)
                     .rotationEffect(.degrees(-90))
                     .animation(.spring(response: 0.5, dampingFraction: 0.8), value: progress)
-                
+
                 // 图标
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(color)
             }
-            
+
             // 文字信息
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
-                
+
                 Text(formatBytes(bytes))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
@@ -1482,7 +1645,7 @@ struct TrafficRingIndicator: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     private func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .binary
