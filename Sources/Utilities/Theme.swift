@@ -224,9 +224,6 @@ enum Theme {
         /// 侧边栏宽度
         static let sidebarWidth: CGFloat = 220
 
-        /// 卡片最大宽度
-        static let cardMaxWidth: CGFloat = 600
-
         /// 工具栏高度
         static let toolbarHeight: CGFloat = 52
     }
