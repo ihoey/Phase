@@ -81,6 +81,97 @@ struct ContentView: View {
             }
         )
         .navigationSplitViewStyle(.balanced)
+        .toolbar {
+            // 使用 principal 占位，确保其他项靠右
+            ToolbarItem(placement: .principal) {
+                Spacer()
+            }
+
+            // 通知
+            ToolbarItem(placement: .primaryAction) {
+                Button(action: {}) {
+                    Image(systemName: "bell")
+                        .font(.system(size: 14))
+                }
+                .help("通知")
+            }
+
+            // 配置选择
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Default Config") {}
+                    Button("Work Config") {}
+                    Divider()
+                    Button("导入配置...") {}
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 9))
+                        Text("Config")
+                            .font(.system(size: 12))
+                    }
+                }
+            }
+
+            // 代理模式
+            ToolbarItem(placement: .primaryAction) {
+                Picker(
+                    "模式",
+                    selection: Binding(
+                        get: { proxyManager.proxyMode },
+                        set: { proxyManager.switchMode($0) }
+                    )
+                ) {
+                    ForEach(ProxyMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 150)
+            }
+
+            // 操作按钮组
+            ToolbarItem(placement: .primaryAction) {
+                HStack(spacing: 16) {
+                    // 系统代理
+                    Button(action: { proxyManager.toggleSystemProxy() }) {
+                        Image(
+                            systemName: proxyManager.isSystemProxyEnabled
+                                ? "globe" : "globe.badge.chevron.backward"
+                        )
+                        .font(.system(size: 16))
+                        .foregroundColor(
+                            proxyManager.isSystemProxyEnabled
+                                ? Theme.Colors.statusActive : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("系统代理")
+                    .disabled(!proxyManager.isRunning)
+
+                    // 刷新
+                    Button(action: {}) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(.plain)
+                    .help("刷新连接")
+
+                    // 电源开关
+                    Button(action: { proxyManager.toggleProxy() }) {
+                        Image(
+                            systemName: proxyManager.isRunning
+                                ? "power.circle.fill" : "power.circle"
+                        )
+                        .font(.system(size: 20))
+                        .foregroundColor(
+                            proxyManager.isRunning ? Theme.Colors.statusActive : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(proxyManager.isRunning ? "停止代理" : "启动代理")
+                }
+                .padding(.horizontal, 12)
+            }
+        }
     }
 }
 
@@ -236,170 +327,43 @@ struct DetailView: View {
     @EnvironmentObject var proxyManager: ProxyManager
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 顶部工具栏
-            TopToolbar()
-
-            Divider()
-
-            // 主内容
-            Group {
-                switch selectedItem {
-                case .overview:
-                    OverviewView()
-                case .nodes:
-                    NodesView()
-                case .subscriptions:
-                    SubscriptionView()
-                case .traffic:
-                    TrafficDetailView()
-                        .environmentObject(trafficTracker)
-                        .onAppear {
-                            if trafficTracker.processes.isEmpty {
-                                trafficTracker.addMockData()
-                            }
+        // 主内容
+        Group {
+            switch selectedItem {
+            case .overview:
+                OverviewView()
+            case .nodes:
+                NodesView()
+            case .subscriptions:
+                SubscriptionView()
+            case .traffic:
+                TrafficDetailView()
+                    .environmentObject(trafficTracker)
+                    .onAppear {
+                        if trafficTracker.processes.isEmpty {
+                            trafficTracker.addMockData()
                         }
-                case .rules:
-                    RulesView()
-                case .logs:
-                    LogsView()
-                case .settings, .config, .advanced:
-                    SettingsView()
-                case .connections:
-                    PlaceholderView(title: "连接", icon: "point.3.connected.trianglepath.dotted")
-                case .resources:
-                    PlaceholderView(title: "资源", icon: "externaldrive.connected.to.line.below")
-                case .topology:
-                    PlaceholderView(
-                        title: "拓扑", icon: "point.topleft.down.to.point.bottomright.curvepath")
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-}
-
-// MARK: - 顶部工具栏
-
-struct TopToolbar: View {
-    @EnvironmentObject var proxyManager: ProxyManager
-    @State private var selectedMode: ProxyMode = .rule
-
-    var body: some View {
-        HStack(spacing: 16) {
-            // 左侧标题
-            Text("Phase 面板")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            // 通知按钮
-            Button(action: {}) {
-                Image(systemName: "bell")
-                    .font(.system(size: 14))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.plain)
-
-            // 配置选择器
-            Menu {
-                Button("Default Config") {}
-                Button("Work Config") {}
-                Divider()
-                Button("导入配置...") {}
-            } label: {
-                HStack(spacing: 6) {
-                    Text("Config")
-                        .font(.system(size: 13))
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 10))
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.gray.opacity(0.15))
-                .cornerRadius(6)
-            }
-            .menuStyle(.borderlessButton)
-            .frame(width: 100)
-
-            // 模式切换
-            HStack(spacing: 0) {
-                ForEach(ProxyMode.allCases, id: \.self) { mode in
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            proxyManager.switchMode(mode)
-                        }
-                    }) {
-                        Text(mode.rawValue)
-                            .font(.system(size: 12, weight: .medium))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .background(
-                                proxyManager.proxyMode == mode
-                                    ? Color.accentColor
-                                    : Color.clear
-                            )
-                            .foregroundColor(
-                                proxyManager.proxyMode == mode
-                                    ? .white
-                                    : .secondary
-                            )
-                            .cornerRadius(6)
                     }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(3)
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(8)
-
-            Divider()
-                .frame(height: 20)
-
-            // 快捷操作按钮
-            HStack(spacing: 8) {
-                // 系统代理开关
-                Button(action: { proxyManager.toggleSystemProxy() }) {
-                    Image(
-                        systemName: proxyManager.isSystemProxyEnabled
-                            ? "globe" : "globe.badge.chevron.backward"
-                    )
-                    .font(.system(size: 14))
-                    .foregroundColor(
-                        proxyManager.isSystemProxyEnabled ? Theme.Colors.statusActive : .secondary)
-                }
-                .buttonStyle(.plain)
-                .help("系统代理")
-                .disabled(!proxyManager.isRunning)
-
-                // 刷新按钮
-                Button(action: {}) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("刷新连接")
-
-                // 主开关
-                Button(action: { proxyManager.toggleProxy() }) {
-                    Image(systemName: proxyManager.isRunning ? "power.circle.fill" : "power.circle")
-                        .font(.system(size: 18))
-                        .foregroundColor(
-                            proxyManager.isRunning ? Theme.Colors.statusActive : .secondary)
-                }
-                .buttonStyle(.plain)
-                .help(proxyManager.isRunning ? "停止代理" : "启动代理")
+            case .rules:
+                RulesView()
+            case .logs:
+                LogsView()
+            case .settings, .config, .advanced:
+                SettingsView()
+            case .connections:
+                PlaceholderView(title: "连接", icon: "point.3.connected.trianglepath.dotted")
+            case .resources:
+                PlaceholderView(title: "资源", icon: "externaldrive.connected.to.line.below")
+            case .topology:
+                PlaceholderView(
+                    title: "拓扑", icon: "point.topleft.down.to.point.bottomright.curvepath")
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(.regularMaterial)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-/// 占位视图 - 用于未实现的页面
+// MARK: - 占位视图 - 用于未实现的页面
 struct PlaceholderView: View {
     let title: String
     let icon: String

@@ -13,7 +13,7 @@ struct OverviewView: View {
         case month = "本月"
         case lastMonth = "上月"
     }
-    
+
     enum RankType: String, CaseIterable {
         case policy = "策略"
         case process = "进程"
@@ -30,14 +30,14 @@ struct OverviewView: View {
                     networkStatusCard
                 }
                 .frame(height: 180)
-                
+
                 // 第二行：实时流量 + 7天流量趋势
                 HStack(spacing: 20) {
                     realTimeTrafficCard
                     weeklyTrafficCard
                 }
                 .frame(height: 200)
-                
+
                 // 第三行：流量汇总
                 trafficSummaryCard
             }
@@ -47,7 +47,7 @@ struct OverviewView: View {
     }
 
     // MARK: - 运行状态卡片
-    
+
     private var runningStatusCard: some View {
         ModernCard(icon: "desktopcomputer", title: "运行状态", iconColor: .blue) {
             VStack(spacing: 16) {
@@ -59,22 +59,22 @@ struct OverviewView: View {
                         value: formattedUptime,
                         valueColor: Theme.Colors.statusActive
                     )
-                    
+
                     Divider()
                         .frame(height: 40)
                         .padding(.horizontal, 12)
-                    
+
                     StatusMetric(
                         icon: "link",
                         label: "连接数",
                         value: proxyManager.isRunning ? "12" : "0",
                         valueColor: .primary
                     )
-                    
+
                     Divider()
                         .frame(height: 40)
                         .padding(.horizontal, 12)
-                    
+
                     StatusMetric(
                         icon: "memorychip",
                         label: "内存",
@@ -82,9 +82,9 @@ struct OverviewView: View {
                         valueColor: .primary
                     )
                 }
-                
+
                 Divider()
-                
+
                 // 底部状态栏
                 HStack(spacing: 24) {
                     StatusBadge(
@@ -93,21 +93,21 @@ struct OverviewView: View {
                         value: proxyManager.isRunning ? "已连接" : "已断开",
                         isActive: proxyManager.isRunning
                     )
-                    
+
                     StatusBadge(
                         icon: "cpu",
                         label: "内核",
                         value: "sing-box",
                         isActive: true
                     )
-                    
+
                     StatusBadge(
                         icon: "apple.logo",
                         label: "系统",
                         value: "macOS 15.0",
                         isActive: true
                     )
-                    
+
                     StatusBadge(
                         icon: "number",
                         label: "版本",
@@ -118,9 +118,9 @@ struct OverviewView: View {
             }
         }
     }
-    
+
     // MARK: - 网络状态卡片
-    
+
     private var networkStatusCard: some View {
         ModernCard(icon: "globe", title: "网络状态", iconColor: .green) {
             VStack(spacing: 16) {
@@ -131,21 +131,21 @@ struct OverviewView: View {
                         label: "互联网",
                         latency: proxyManager.isRunning ? 235 : nil
                     )
-                    
+
                     Divider()
                         .frame(height: 40)
                         .padding(.horizontal, 12)
-                    
+
                     LatencyMetric(
                         icon: "server.rack",
                         label: "DNS",
                         latency: proxyManager.isRunning ? 754 : nil
                     )
-                    
+
                     Divider()
                         .frame(height: 40)
                         .padding(.horizontal, 12)
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
                             Image(systemName: "point.3.connected.trianglepath.dotted")
@@ -161,9 +161,9 @@ struct OverviewView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
+
                 Divider()
-                
+
                 // 网络信息
                 HStack(spacing: 24) {
                     StatusBadge(
@@ -172,14 +172,14 @@ struct OverviewView: View {
                         value: "Ethernet",
                         isActive: true
                     )
-                    
+
                     StatusBadge(
                         icon: "network",
                         label: "本地IP",
                         value: getLocalIP(),
                         isActive: true
                     )
-                    
+
                     StatusBadge(
                         icon: "globe.asia.australia",
                         label: "代理IP",
@@ -190,38 +190,75 @@ struct OverviewView: View {
             }
         }
     }
-    
+
     // MARK: - 实时流量卡片
-    
+
     private var realTimeTrafficCard: some View {
         ModernCard(icon: "chart.line.uptrend.xyaxis", title: "实时流量", iconColor: .purple) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 // 速度显示
-                HStack(spacing: 32) {
-                    SpeedDisplay(
-                        icon: "arrow.up",
-                        label: "上传速度",
-                        speed: proxyManager.isRunning ? proxyManager.uploadSpeedHistory.last?.value ?? 0 : 0,
-                        color: Theme.Colors.chartUpload
-                    )
-                    
-                    SpeedDisplay(
-                        icon: "arrow.down",
-                        label: "下载速度",
-                        speed: proxyManager.isRunning ? proxyManager.downloadSpeedHistory.last?.value ?? 0 : 0,
-                        color: Theme.Colors.chartDownload
-                    )
+                HStack(spacing: 0) {
+                    // 上传速度区域
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.up")
+                                .font(.system(size: 10))
+                            Text("上传速度")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(.secondary)
+
+                        Text(
+                            formatSpeed(
+                                proxyManager.isRunning
+                                    ? proxyManager.uploadSpeedHistory.last?.value ?? 0 : 0)
+                        )
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(Theme.Colors.chartUpload)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Divider()
+                        .frame(height: 30)
+                        .padding(.horizontal, 16)
+
+                    // 下载速度区域
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.down")
+                                .font(.system(size: 10))
+                            Text("下载速度")
+                                .font(.system(size: 11))
+                        }
+                        .foregroundColor(.secondary)
+
+                        Text(
+                            formatSpeed(
+                                proxyManager.isRunning
+                                    ? proxyManager.downloadSpeedHistory.last?.value ?? 0 : 0)
+                        )
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(Theme.Colors.chartDownload)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                
+
+                // 实时折线图
+                RealTimeSpeedChart(
+                    uploadHistory: proxyManager.uploadSpeedHistory,
+                    downloadHistory: proxyManager.downloadSpeedHistory
+                )
+                .frame(height: 60)
+
                 // 流量滑块指示
-                VStack(spacing: 8) {
+                HStack(spacing: 24) {
                     TrafficSlider(
                         icon: "arrow.up.circle",
                         label: "上传",
                         current: proxyManager.trafficStats.uploadBytes,
                         color: Theme.Colors.chartUpload
                     )
-                    
+
                     TrafficSlider(
                         icon: "arrow.down.circle",
                         label: "下载",
@@ -232,9 +269,9 @@ struct OverviewView: View {
             }
         }
     }
-    
+
     // MARK: - 7天流量趋势
-    
+
     private var weeklyTrafficCard: some View {
         ModernCard(
             icon: "chart.bar.fill",
@@ -259,16 +296,16 @@ struct OverviewView: View {
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                 }
                 .frame(width: 90, alignment: .leading)
-                
+
                 // 柱状图
                 WeeklyBarChart()
                     .frame(maxWidth: .infinity)
             }
         }
     }
-    
+
     // MARK: - 流量汇总卡片
-    
+
     private var trafficSummaryCard: some View {
         ModernCard(
             icon: "clock.arrow.circlepath",
@@ -312,7 +349,7 @@ struct OverviewView: View {
                     .padding(3)
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(8)
-                    
+
                     HStack(spacing: 24) {
                         // 环形进度图
                         TrafficRingChart(
@@ -320,7 +357,7 @@ struct OverviewView: View {
                             download: proxyManager.trafficStats.downloadBytes
                         )
                         .frame(width: 140, height: 140)
-                        
+
                         // 流量统计
                         VStack(alignment: .leading, spacing: 12) {
                             TrafficStatRow(
@@ -329,47 +366,35 @@ struct OverviewView: View {
                                 value: formatBytes(proxyManager.trafficStats.uploadBytes),
                                 color: Theme.Colors.chartUpload
                             )
-                            
+
                             TrafficStatRow(
                                 icon: "arrow.down.circle.fill",
                                 label: "下载",
                                 value: formatBytes(proxyManager.trafficStats.downloadBytes),
                                 color: Theme.Colors.chartDownload
                             )
-                            
+
                             Divider()
-                            
-                            HStack(spacing: 16) {
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(Color.blue)
-                                        .frame(width: 6, height: 6)
-                                    Text("直接连接")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.secondary)
-                                    Text(formatBytes(0))
-                                        .font(.system(size: 11, weight: .medium))
-                                }
-                                
-                                HStack(spacing: 4) {
-                                    Circle()
-                                        .fill(Color.purple)
-                                        .frame(width: 6, height: 6)
-                                    Text("策略")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.secondary)
-                                    Text(formatBytes(proxyManager.trafficStats.uploadBytes + proxyManager.trafficStats.downloadBytes))
-                                        .font(.system(size: 11, weight: .medium))
-                                }
-                            }
+
+                            // 直接连接与策略的流量比例
+                            TrafficRatioBar(
+                                directBytes: Int64(
+                                    Double(
+                                        proxyManager.trafficStats.uploadBytes
+                                            + proxyManager.trafficStats.downloadBytes) * 0.05),
+                                proxyBytes: Int64(
+                                    Double(
+                                        proxyManager.trafficStats.uploadBytes
+                                            + proxyManager.trafficStats.downloadBytes) * 0.95)
+                            )
                         }
                     }
                 }
                 .frame(maxWidth: .infinity)
-                
+
                 Divider()
                     .frame(height: 140)
-                
+
                 // 右侧：排行榜
                 VStack(alignment: .leading, spacing: 12) {
                     // 排行榜标题和类型选择
@@ -381,9 +406,9 @@ struct OverviewView: View {
                                 .font(.system(size: 13, weight: .medium))
                         }
                         .foregroundColor(.secondary)
-                        
+
                         Spacer()
-                        
+
                         // 类型选择器
                         HStack(spacing: 0) {
                             ForEach(RankType.allCases, id: \.self) { type in
@@ -408,7 +433,7 @@ struct OverviewView: View {
                             }
                         }
                     }
-                    
+
                     if proxyManager.isRunning {
                         // 排行列表
                         VStack(spacing: 8) {
@@ -431,9 +456,9 @@ struct OverviewView: View {
             }
         }
     }
-    
+
     // MARK: - Helpers
-    
+
     private var formattedUptime: String {
         guard let startTime = proxyManager.startTime else {
             return "00:00"
@@ -443,19 +468,19 @@ struct OverviewView: View {
         let minutes = (Int(interval) % 3600) / 60
         return String(format: "%02d:%02d", hours, minutes)
     }
-    
+
     private func getLocalIP() -> String {
         // 简化显示
         return "192.168.x.x"
     }
-    
+
     private func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .binary
         formatter.allowedUnits = [.useKB, .useMB, .useGB]
         return formatter.string(fromByteCount: bytes)
     }
-    
+
     private func formatSpeed(_ bytes: Double) -> String {
         let kb = bytes / 1024
         if kb < 1024 {
@@ -474,7 +499,7 @@ struct ModernCard<Content: View, Trailing: View>: View {
     let iconColor: Color
     let trailing: () -> Trailing
     let content: () -> Content
-    
+
     init(
         icon: String,
         title: String,
@@ -488,7 +513,7 @@ struct ModernCard<Content: View, Trailing: View>: View {
         self.trailing = trailing
         self.content = content
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // 标题栏
@@ -497,16 +522,16 @@ struct ModernCard<Content: View, Trailing: View>: View {
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(iconColor)
-                    
+
                     Text(title)
                         .font(.system(size: 14, weight: .semibold))
                 }
-                
+
                 Spacer()
-                
+
                 trailing()
             }
-            
+
             content()
         }
         .padding(20)
@@ -529,7 +554,7 @@ struct StatusMetric: View {
     let label: String
     let value: String
     let valueColor: Color
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
@@ -540,7 +565,7 @@ struct StatusMetric: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
-            
+
             Text(value)
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(valueColor)
@@ -553,7 +578,7 @@ struct LatencyMetric: View {
     let icon: String
     let label: String
     let latency: Int?
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
@@ -564,7 +589,7 @@ struct LatencyMetric: View {
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
-            
+
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 if let latency = latency {
                     Text("\(latency)")
@@ -582,7 +607,7 @@ struct LatencyMetric: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
-    
+
     private func latencyColor(_ latency: Int) -> Color {
         switch latency {
         case 0..<100: return Theme.Colors.statusActive
@@ -597,17 +622,17 @@ struct StatusBadge: View {
     let label: String
     let value: String
     let isActive: Bool
-    
+
     var body: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 10))
                 .foregroundColor(isActive ? Theme.Colors.statusActive : .secondary)
-            
+
             Text(label)
                 .font(.system(size: 11))
                 .foregroundColor(.secondary)
-            
+
             Text(value)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.primary)
@@ -622,7 +647,7 @@ struct SpeedDisplay: View {
     let label: String
     let speed: Double
     let color: Color
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
@@ -632,13 +657,13 @@ struct SpeedDisplay: View {
                     .font(.system(size: 11))
             }
             .foregroundColor(.secondary)
-            
+
             Text(formatSpeed(speed))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundColor(color)
         }
     }
-    
+
     private func formatSpeed(_ bytes: Double) -> String {
         let kb = bytes / 1024
         if kb < 1 {
@@ -658,7 +683,7 @@ struct TrafficSlider: View {
     let label: String
     let current: Int64
     let color: Color
-    
+
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 4) {
@@ -670,13 +695,13 @@ struct TrafficSlider: View {
                     .foregroundColor(.secondary)
             }
             .frame(width: 50, alignment: .leading)
-            
+
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     // 背景轨道
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.gray.opacity(0.2))
-                    
+
                     // 进度条
                     RoundedRectangle(cornerRadius: 4)
                         .fill(
@@ -687,24 +712,25 @@ struct TrafficSlider: View {
                             )
                         )
                         .frame(width: min(CGFloat(current) / 1024 / 1024 * 10, geometry.size.width))
-                    
+
                     // 滑块指示器
                     Circle()
                         .fill(color)
                         .frame(width: 12, height: 12)
                         .shadow(color: color.opacity(0.5), radius: 4, x: 0, y: 2)
-                        .offset(x: min(CGFloat(current) / 1024 / 1024 * 10, geometry.size.width - 12))
+                        .offset(
+                            x: min(CGFloat(current) / 1024 / 1024 * 10, geometry.size.width - 12))
                 }
             }
             .frame(height: 8)
-            
+
             Text(formatBytes(current))
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundColor(.secondary)
                 .frame(width: 60, alignment: .trailing)
         }
     }
-    
+
     private func formatBytes(_ bytes: Int64) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .binary
@@ -713,29 +739,63 @@ struct TrafficSlider: View {
     }
 }
 
-// MARK: - 7天柱状图
+// MARK: - 7天柱状图 (带Hover效果)
 
 struct WeeklyBarChart: View {
-    let data: [Double] = [25, 38, 42, 55, 48, 35, 45]
-    let days = ["周四", "周三", "周二", "周一", "周日", "周六", "周五"]
-    
+    let data: [(day: String, value: Double)] = [
+        ("周四", 25), ("周三", 38), ("周二", 42),
+        ("周一", 291.5), ("周日", 48), ("周六", 35), ("周五", 45),
+    ]
+    @State private var hoveredIndex: Int? = nil
+
+    var maxValue: Double {
+        data.map { $0.value }.max() ?? 1
+    }
+
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            ForEach(Array(data.enumerated()), id: \.offset) { index, value in
+        HStack(alignment: .bottom, spacing: 6) {
+            ForEach(Array(data.enumerated()), id: \.offset) { index, item in
                 VStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.gray.opacity(0.4), Color.gray.opacity(0.6)],
-                                startPoint: .top,
-                                endPoint: .bottom
+                    ZStack(alignment: .top) {
+                        // 悬停提示
+                        if hoveredIndex == index {
+                            Text(String(format: "%.1f MB", item.value))
+                                .font(.system(size: 9, weight: .semibold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.orange)
+                                .foregroundColor(.white)
+                                .cornerRadius(4)
+                                .offset(y: -24)
+                                .transition(.opacity.combined(with: .scale))
+                        }
+
+                        // 柱状图
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(
+                                hoveredIndex == index
+                                    ? LinearGradient(
+                                        colors: [Color.orange.opacity(0.8), Color.orange],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                    : LinearGradient(
+                                        colors: [Color.gray.opacity(0.4), Color.gray.opacity(0.6)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
                             )
-                        )
-                        .frame(width: 24, height: CGFloat(value) * 1.5)
-                    
-                    Text(days[index])
+                            .frame(width: 22, height: max(8, CGFloat(item.value / maxValue) * 80))
+                    }
+
+                    Text(item.day)
                         .font(.system(size: 9))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(hoveredIndex == index ? .orange : .secondary)
+                }
+                .onHover { isHovered in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        hoveredIndex = isHovered ? index : nil
+                    }
                 }
             }
         }
@@ -747,15 +807,15 @@ struct WeeklyBarChart: View {
 struct TrafficRingChart: View {
     let upload: Int64
     let download: Int64
-    
+
     var total: Int64 { upload + download }
-    
+
     var body: some View {
         ZStack {
             // 外环
             Circle()
                 .stroke(Color.gray.opacity(0.2), lineWidth: 12)
-            
+
             // 渐变环
             Circle()
                 .trim(from: 0, to: total > 0 ? 0.75 : 0)
@@ -766,7 +826,7 @@ struct TrafficRingChart: View {
                             Color.blue,
                             Color.purple,
                             Color.pink,
-                            Color.cyan
+                            Color.cyan,
                         ],
                         center: .center
                     ),
@@ -774,7 +834,7 @@ struct TrafficRingChart: View {
                 )
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 1), value: total)
-            
+
             // 中心文本
             VStack(spacing: 2) {
                 Text("总计")
@@ -785,7 +845,199 @@ struct TrafficRingChart: View {
             }
         }
     }
-    
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        if bytes == 0 { return "0 KB" }
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .binary
+        formatter.allowedUnits = [.useKB, .useMB, .useGB]
+        return formatter.string(fromByteCount: bytes)
+    }
+}
+
+// MARK: - 实时速度折线图
+
+struct RealTimeSpeedChart: View {
+    let uploadHistory: [TrafficDataPoint]
+    let downloadHistory: [TrafficDataPoint]
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // 下载速度曲线（蓝色）
+                SpeedCurvePath(
+                    data: downloadHistory,
+                    size: geometry.size,
+                    color: Theme.Colors.chartDownload
+                )
+
+                // 上传速度曲线（青绿色）
+                SpeedCurvePath(
+                    data: uploadHistory,
+                    size: geometry.size,
+                    color: Theme.Colors.chartUpload
+                )
+            }
+        }
+    }
+}
+
+struct SpeedCurvePath: View {
+    let data: [TrafficDataPoint]
+    let size: CGSize
+    let color: Color
+
+    var body: some View {
+        let points = normalizedPoints
+
+        ZStack {
+            // 渐变填充区域
+            Path { path in
+                guard points.count > 1 else { return }
+                path.move(to: CGPoint(x: points[0].x, y: size.height))
+                path.addLine(to: points[0])
+
+                for i in 1..<points.count {
+                    let control1 = CGPoint(
+                        x: points[i - 1].x + (points[i].x - points[i - 1].x) / 2,
+                        y: points[i - 1].y
+                    )
+                    let control2 = CGPoint(
+                        x: points[i - 1].x + (points[i].x - points[i - 1].x) / 2,
+                        y: points[i].y
+                    )
+                    path.addCurve(to: points[i], control1: control1, control2: control2)
+                }
+
+                path.addLine(to: CGPoint(x: points.last!.x, y: size.height))
+                path.closeSubpath()
+            }
+            .fill(
+                LinearGradient(
+                    colors: [color.opacity(0.3), color.opacity(0.05)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+
+            // 曲线描边
+            Path { path in
+                guard points.count > 1 else { return }
+                path.move(to: points[0])
+
+                for i in 1..<points.count {
+                    let control1 = CGPoint(
+                        x: points[i - 1].x + (points[i].x - points[i - 1].x) / 2,
+                        y: points[i - 1].y
+                    )
+                    let control2 = CGPoint(
+                        x: points[i - 1].x + (points[i].x - points[i - 1].x) / 2,
+                        y: points[i].y
+                    )
+                    path.addCurve(to: points[i], control1: control1, control2: control2)
+                }
+            }
+            .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+        }
+    }
+
+    private var normalizedPoints: [CGPoint] {
+        guard !data.isEmpty else {
+            // 生成静态波形
+            return generateStaticWave()
+        }
+
+        let maxValue = max(data.map { $0.value }.max() ?? 1, 1024)
+        let count = data.count
+
+        return data.enumerated().map { index, point in
+            let x = size.width * CGFloat(index) / CGFloat(max(count - 1, 1))
+            let y = size.height - (size.height * CGFloat(point.value) / CGFloat(maxValue))
+            return CGPoint(x: x, y: max(2, min(y, size.height - 2)))
+        }
+    }
+
+    private func generateStaticWave() -> [CGPoint] {
+        // 生成一个静态的波形
+        let pointCount = 20
+        return (0..<pointCount).map { i in
+            let x = size.width * CGFloat(i) / CGFloat(pointCount - 1)
+            let wave = sin(Double(i) * 0.5) * 0.3 + 0.5
+            let y = size.height * (1 - CGFloat(wave) * 0.3)
+            return CGPoint(x: x, y: y)
+        }
+    }
+}
+
+// MARK: - 流量比例进度条
+
+struct TrafficRatioBar: View {
+    let directBytes: Int64
+    let proxyBytes: Int64
+
+    var total: Int64 { directBytes + proxyBytes }
+    var directRatio: CGFloat { total > 0 ? CGFloat(directBytes) / CGFloat(total) : 0 }
+    var proxyRatio: CGFloat { total > 0 ? CGFloat(proxyBytes) / CGFloat(total) : 0 }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            // 标签和数值
+            HStack(spacing: 16) {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.blue)
+                        .frame(width: 6, height: 6)
+                    Text("直接连接")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Text(formatBytes(directBytes))
+                        .font(.system(size: 11, weight: .medium))
+                }
+
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color.purple)
+                        .frame(width: 6, height: 6)
+                    Text("策略")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Text(formatBytes(proxyBytes))
+                        .font(.system(size: 11, weight: .medium))
+                }
+            }
+
+            // 进度条
+            GeometryReader { geometry in
+                HStack(spacing: 2) {
+                    // 直接连接部分（蓝色）
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.blue.opacity(0.7), Color.blue],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(
+                            width: max(geometry.size.width * directRatio, directBytes > 0 ? 20 : 0))
+
+                    // 策略部分（紫色/粉色渐变）
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.purple, Color.pink],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(
+                            width: max(geometry.size.width * proxyRatio, proxyBytes > 0 ? 20 : 0))
+                }
+            }
+            .frame(height: 6)
+        }
+    }
+
     private func formatBytes(_ bytes: Int64) -> String {
         if bytes == 0 { return "0 KB" }
         let formatter = ByteCountFormatter()
@@ -802,19 +1054,19 @@ struct TrafficStatRow: View {
     let label: String
     let value: String
     let color: Color
-    
+
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: icon)
                 .font(.system(size: 14))
                 .foregroundColor(color)
-            
+
             Text(label)
                 .font(.system(size: 12))
                 .foregroundColor(.secondary)
-            
+
             Spacer()
-            
+
             Text(value)
                 .font(.system(size: 13, weight: .semibold))
         }
@@ -827,20 +1079,20 @@ struct RankRow: View {
     let rank: Int
     let name: String
     let traffic: String
-    
+
     var body: some View {
         HStack(spacing: 12) {
             Text("\(rank)")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundColor(.secondary)
                 .frame(width: 16)
-            
+
             Text(name)
                 .font(.system(size: 12))
                 .lineLimit(1)
-            
+
             Spacer()
-            
+
             Text(traffic)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
